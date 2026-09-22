@@ -53,31 +53,49 @@ class LoginWindow(QWidget):
             """
         )
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(48, 56, 48, 40)
+        layout.setContentsMargins(48, 44, 48, 40)
         layout.setSpacing(16)
 
-        # Logo institucional (si existe; si no, texto de respaldo)
+        # Identidad institucional centrada en el panel izquierdo.
         logo = assets.logo_principal()
         lbl_logo = QLabel()
+        lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         if not logo.isNull():
             lbl_logo.setPixmap(
-                logo.scaledToWidth(200, Qt.TransformationMode.SmoothTransformation)
+                logo.scaledToWidth(220, Qt.TransformationMode.SmoothTransformation)
             )
         else:
             lbl_logo.setText("Alcaldía de Medellín")
             lbl_logo.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
-        layout.addWidget(lbl_logo)
+        layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        siglas = QLabel("SGS")
+        siglas.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        siglas.setStyleSheet(
+            "color: white; font-size: 34px; font-weight: 800; letter-spacing: 6px;"
+        )
+        layout.addWidget(siglas)
+
+        subtitulo_marca = QLabel("Sistema de Gestión de Solicitudes")
+        subtitulo_marca.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitulo_marca.setStyleSheet(
+            "color: rgba(255,255,255,0.90); font-size: 14px; font-weight: 500;"
+        )
+        layout.addWidget(subtitulo_marca)
 
         layout.addStretch()
 
         titulo = QLabel("Bienvenido")
+        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         titulo.setStyleSheet("color: white; font-size: 30px; font-weight: 700;")
-        subtitulo = QLabel("Sistema de Gestión\nde Solicitudes")
+        subtitulo = QLabel("Gestiona tus solicitudes\nde forma sencilla y segura")
+        subtitulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitulo.setStyleSheet("color: rgba(255,255,255,0.92); font-size: 17px; font-weight: 500;")
         descripcion = QLabel(
             "Gestiona las solicitudes ciudadanas provenientes de SAC "
             "desde un solo lugar."
         )
+        descripcion.setAlignment(Qt.AlignmentFlag.AlignCenter)
         descripcion.setWordWrap(True)
         descripcion.setStyleSheet("color: rgba(255,255,255,0.80); font-size: 13px;")
 
@@ -88,6 +106,7 @@ class LoginWindow(QWidget):
         layout.addStretch()
 
         pie = QLabel("Secretaría de Salud")
+        pie.setAlignment(Qt.AlignmentFlag.AlignCenter)
         pie.setStyleSheet("color: rgba(255,255,255,0.75); font-size: 12px;")
         layout.addWidget(pie)
         return panel
@@ -132,18 +151,33 @@ class LoginWindow(QWidget):
 
         formulario.addSpacing(8)
         boton_entrar = QPushButton("Ingresar")
+        boton_entrar.setObjectName("botonIngresar")
         boton_entrar.setProperty("variant", "primary")
-        boton_entrar.setMinimumHeight(44)
+        boton_entrar.setMinimumHeight(48)
         boton_entrar.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Contraste reforzado únicamente para el acceso, sin afectar los
+        # botones del resto de la aplicación.
+        boton_entrar.setStyleSheet(
+            f"""
+            QPushButton#botonIngresar {{
+                background-color: {theme.COLORES['primary_dark']};
+                color: #FFFFFF;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 14px;
+                font-weight: 700;
+            }}
+            QPushButton#botonIngresar:hover {{
+                background-color: #005F94;
+            }}
+            QPushButton#botonIngresar:pressed {{
+                background-color: #004A73;
+            }}
+            """
+        )
         boton_entrar.clicked.connect(self._intentar_login)
         formulario.addWidget(boton_entrar)
-
-        olvido = QLabel("¿Olvidó su contraseña?")
-        olvido.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        olvido.setStyleSheet(f"color: {theme.COLORES['primary']}; font-size: 12px;")
-        olvido.setCursor(Qt.CursorShape.PointingHandCursor)
-        formulario.addSpacing(6)
-        formulario.addWidget(olvido)
 
         contenedor.addLayout(formulario)
         contenedor.addStretch()
