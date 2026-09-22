@@ -53,23 +53,21 @@ class LoginWindow(QWidget):
             """
         )
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(14)
+        layout.setContentsMargins(30, 28, 30, 28)
+        layout.setSpacing(12)
 
-        # Marca institucional más limpia: el logo en un bloque blanco con brillo,
-        # y el nombre corporativo bajo la marca, alineado a la izquierda.
         marca = QFrame()
         marca.setStyleSheet(
             """
             QFrame {
                 background: rgba(255,255,255,0.12);
-                border: 1px solid rgba(255,255,255,0.22);
+                border: 1px solid rgba(255,255,255,0.20);
                 border-radius: 18px;
             }
             """
         )
         marca_layout = QVBoxLayout(marca)
-        marca_layout.setContentsMargins(20, 20, 20, 18)
+        marca_layout.setContentsMargins(18, 18, 18, 16)
 
         logo = assets.logo_principal()
         lbl_logo = QLabel()
@@ -85,40 +83,25 @@ class LoginWindow(QWidget):
 
         layout.addWidget(marca, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        siglas = QLabel("SGS")
-        siglas.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        siglas.setStyleSheet(
-            "color: white; font-size: 30px; font-weight: 800; letter-spacing: 8px;"
+        marca_texto = QLabel("Sistema de Gestión de Solicitudes")
+        marca_texto.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        marca_texto.setStyleSheet(
+            "color: rgba(255,255,255,0.92); font-size: 15px; font-weight: 600;"
         )
-        layout.addWidget(siglas)
-
-        subtitulo_marca = QLabel("Sistema de Gestión de Solicitudes")
-        subtitulo_marca.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        subtitulo_marca.setStyleSheet(
-            "color: rgba(255,255,255,0.90); font-size: 14px; font-weight: 500;"
-        )
-        layout.addWidget(subtitulo_marca)
+        layout.addWidget(marca_texto)
 
         layout.addStretch(1)
 
         titulo = QLabel("Bienvenido")
         titulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         titulo.setStyleSheet("color: white; font-size: 28px; font-weight: 700;")
-        subtitulo = QLabel("Gestiona tus solicitudes\nde forma sencilla y segura")
+
+        subtitulo = QLabel("Acceso institucional")
         subtitulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         subtitulo.setStyleSheet("color: rgba(255,255,255,0.92); font-size: 16px; font-weight: 500;")
-        descripcion = QLabel(
-            "Gestiona las solicitudes ciudadanas provenientes de SAC "
-            "desde un solo lugar."
-        )
-        descripcion.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        descripcion.setWordWrap(True)
-        descripcion.setStyleSheet("color: rgba(255,255,255,0.80); font-size: 12px;")
 
         layout.addWidget(titulo)
         layout.addWidget(subtitulo)
-        layout.addSpacing(4)
-        layout.addWidget(descripcion)
         layout.addStretch(2)
 
         pie = QLabel("Secretaría de Salud")
