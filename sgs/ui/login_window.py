@@ -56,7 +56,7 @@ class LoginWindow(QWidget):
         layout.setContentsMargins(48, 44, 48, 40)
         layout.setSpacing(16)
 
-        # Identidad institucional centrada en el panel izquierdo.
+        # El logo va centrado; el texto corporativo queda alineado a la izquierda.
         logo = assets.logo_principal()
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -70,14 +70,14 @@ class LoginWindow(QWidget):
         layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         siglas = QLabel("SGS")
-        siglas.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        siglas.setAlignment(Qt.AlignmentFlag.AlignLeft)
         siglas.setStyleSheet(
             "color: white; font-size: 34px; font-weight: 800; letter-spacing: 6px;"
         )
         layout.addWidget(siglas)
 
         subtitulo_marca = QLabel("Sistema de Gestión de Solicitudes")
-        subtitulo_marca.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitulo_marca.setAlignment(Qt.AlignmentFlag.AlignLeft)
         subtitulo_marca.setStyleSheet(
             "color: rgba(255,255,255,0.90); font-size: 14px; font-weight: 500;"
         )
@@ -86,16 +86,16 @@ class LoginWindow(QWidget):
         layout.addStretch()
 
         titulo = QLabel("Bienvenido")
-        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        titulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         titulo.setStyleSheet("color: white; font-size: 30px; font-weight: 700;")
         subtitulo = QLabel("Gestiona tus solicitudes\nde forma sencilla y segura")
-        subtitulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         subtitulo.setStyleSheet("color: rgba(255,255,255,0.92); font-size: 17px; font-weight: 500;")
         descripcion = QLabel(
             "Gestiona las solicitudes ciudadanas provenientes de SAC "
             "desde un solo lugar."
         )
-        descripcion.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        descripcion.setAlignment(Qt.AlignmentFlag.AlignLeft)
         descripcion.setWordWrap(True)
         descripcion.setStyleSheet("color: rgba(255,255,255,0.80); font-size: 13px;")
 
@@ -106,7 +106,7 @@ class LoginWindow(QWidget):
         layout.addStretch()
 
         pie = QLabel("Secretaría de Salud")
-        pie.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pie.setAlignment(Qt.AlignmentFlag.AlignLeft)
         pie.setStyleSheet("color: rgba(255,255,255,0.75); font-size: 12px;")
         layout.addWidget(pie)
         return panel
@@ -155,8 +155,6 @@ class LoginWindow(QWidget):
         boton_entrar.setProperty("variant", "primary")
         boton_entrar.setMinimumHeight(48)
         boton_entrar.setCursor(Qt.CursorShape.PointingHandCursor)
-        # Contraste reforzado únicamente para el acceso, sin afectar los
-        # botones del resto de la aplicación.
         boton_entrar.setStyleSheet(
             f"""
             QPushButton#botonIngresar {{
@@ -203,7 +201,6 @@ class LoginWindow(QWidget):
         campo = QLineEdit()
         campo.setPlaceholderText(placeholder)
         campo.setMinimumHeight(44)
-        # Icono a la izquierda (si el SVG existe en assets/images/iconos/)
         qicon = assets.icono(icono)
         if not qicon.isNull():
             accion = campo.addAction(qicon, QLineEdit.ActionPosition.LeadingPosition)
@@ -214,8 +211,6 @@ class LoginWindow(QWidget):
         return campo
 
     def _agregar_toggle_password(self, campo: QLineEdit) -> None:
-        """Botón 'ojo' para mostrar/ocultar la contraseña (usa el icono
-        'ver' si existe; si no, alterna con un símbolo de texto)."""
         icono_ver = assets.icono("ver")
         accion = campo.addAction(
             icono_ver if not icono_ver.isNull() else campo.style().standardIcon(
@@ -234,7 +229,7 @@ class LoginWindow(QWidget):
 
     # ------------------------------------------------------------------
     def _intentar_login(self) -> None:
-        from sgs.app.casos_de_uso import autenticar  # import perezoso: evita tocar la BD al abrir la ventana
+        from sgs.app.casos_de_uso import autenticar
 
         usuario = self.campo_usuario.text().strip()
         password = self.campo_password.text()
@@ -245,7 +240,6 @@ class LoginWindow(QWidget):
         try:
             resultado = autenticar(usuario, password)
         except Exception:
-            # No exponer detalles técnicos (cadena de conexión, driver, etc.) en la UI
             self._mostrar_error("No fue posible conectar con el sistema. Intenta de nuevo.")
             return
 
