@@ -17,8 +17,8 @@ class ParametrosSemaforizacionRepo:
             self.db.flush()
         return fila
 
-    def guardar(self, dias_rojo: int, dias_amarillo: int) -> None:
+    def guardar(self, dias_verde_hasta: int, dias_amarillo_cerca: int) -> None:
         fila = self.obtener()
-        fila.dias_habiles_verde_hasta = dias_rojo
-        fila.dias_habiles_amarillo_hasta = dias_amarillo
+        fila.dias_habiles_verde_hasta = dias_verde_hasta
+        fila.dias_habiles_amarillo_hasta = dias_amarillo_cerca
         self.db.flush()

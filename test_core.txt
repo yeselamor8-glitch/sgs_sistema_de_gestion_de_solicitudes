@@ -1,0 +1,41 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\yesel\OneDrive\Escritorio\sgs_scaffold_fase5
+collected 106 items
+
+sgs\tests\test_casos_de_uso.py ..............                            [ 13%]
+sgs\tests\test_gestion_repo.py ...........                               [ 23%]
+sgs\tests\test_importacion_sac_repo.py ....                              [ 27%]
+sgs\tests\test_motor_analisis.py .........                               [ 35%]
+sgs\tests\test_motor_auth.py .....                                       [ 40%]
+sgs\tests\test_motor_importacion_sac.py ..........                       [ 50%]
+sgs\tests\test_motor_importacion_sac_duplicados.py ..                    [ 51%]
+sgs\tests\test_motores.py .............................................. [ 95%]
+                                                                         [ 95%]
+sgs\tests\test_permisos_repo.py ..                                       [ 97%]
+sgs\tests\test_solicitud_repo.py ...                                     [100%]
+
+============================== warnings summary ===============================
+sgs/tests/test_casos_de_uso.py: 38 warnings
+sgs/tests/test_gestion_repo.py: 20 warnings
+sgs/tests/test_importacion_sac_repo.py: 8 warnings
+sgs/tests/test_permisos_repo.py: 6 warnings
+sgs/tests/test_solicitud_repo.py: 15 warnings
+  C:\Users\yesel\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\schema.py:3627: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+sgs/tests/test_gestion_repo.py: 10 warnings
+sgs/tests/test_importacion_sac_repo.py: 1 warning
+  C:\Users\yesel\OneDrive\Escritorio\sgs_scaffold_fase5\sgs\repos\gestion_solicitud_repo.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    solicitud.actualizado_en = dt.datetime.utcnow()
+
+sgs/tests/test_importacion_sac_repo.py::test_reimportacion_no_sobrescribe_estado_sac_editado_en_app
+sgs/tests/test_importacion_sac_repo.py::test_reimportacion_no_sobrescribe_estado_sac_editado_en_app
+sgs/tests/test_importacion_sac_repo.py::test_importacion_nueva_guarda_estado_sac_del_archivo
+sgs/tests/test_importacion_sac_repo.py::test_importacion_mapea_encabezados_reales_del_exporte_sac
+sgs/tests/test_importacion_sac_repo.py::test_importacion_con_codigos_numericos_de_municipio_no_viola_fk
+  C:\Users\yesel\OneDrive\Escritorio\sgs_scaffold_fase5\sgs\repos\importacion_sac_repo.py:212: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    solicitud.actualizado_en = dt.datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 106 passed, 103 warnings in 5.51s ======================

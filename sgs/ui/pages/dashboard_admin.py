@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
 
 from sgs.ui import theme
 from sgs.ui.widgets.metric_card import MetricCard
-from sgs.ui.widgets.semaforo_badge import SemaforoBadge
 
 
 class DashboardAdminPage(QWidget):
@@ -23,6 +22,8 @@ class DashboardAdminPage(QWidget):
 
     def __init__(self, usuario_id: int | None = None, rol: str = "ADMINISTRADOR"):
         super().__init__()
+        self._usuario_id = usuario_id
+        self._rol = rol
         self._datos, self._error = self._cargar_datos(usuario_id, rol)
         contenedor = QScrollArea()
         contenedor.setWidgetResizable(True)
@@ -44,6 +45,7 @@ class DashboardAdminPage(QWidget):
         fila_inferior.setSpacing(12)
         fila_inferior.addWidget(self._panel_atencion_prioritaria(), stretch=13)
         fila_inferior.addWidget(self._panel_por_proceso(), stretch=10)
+        self._fila_inferior = fila_inferior
         layout.addLayout(fila_inferior)
 
         layout.addStretch()
@@ -52,6 +54,25 @@ class DashboardAdminPage(QWidget):
         layout_raiz = QVBoxLayout(self)
         layout_raiz.setContentsMargins(0, 0, 0, 0)
         layout_raiz.addWidget(contenedor)
+
+    def al_mostrar(self) -> None:
+        """Re-consulta al mostrar la página — el semáforo se calcula contra
+        la fecha actual, así que el dashboard siempre refleja el 'hoy'."""
+        self._datos, self._error = self._cargar_datos(self._usuario_id, self._rol)
+        claves = ("total", "en_tiempo", "proximas_vencer", "vencidas")
+        for tarjeta, clave in zip(self._tarjetas, claves):
+            tarjeta.set_valor(str(self._datos.get(clave, 0)))
+        self._repoblar_paneles()
+
+    def _repoblar_paneles(self) -> None:
+        while self._fila_inferior.count():
+            item = self._fila_inferior.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                self._fila_inferior.removeWidget(widget)
+                widget.deleteLater()
+        self._fila_inferior.addWidget(self._panel_atencion_prioritaria(), stretch=13)
+        self._fila_inferior.addWidget(self._panel_por_proceso(), stretch=10)
 
     def _encabezado(self) -> QHBoxLayout:
         fila = QHBoxLayout()
@@ -68,66 +89,106 @@ class DashboardAdminPage(QWidget):
 
         tarjetas = [
             MetricCard("Total solicitudes", str(datos["total"])),
-            MetricCard("En tiempo", str(datos["en_tiempo"]), theme.SEMAFORO_VERDE, theme.SEMAFORO_VERDE_BG),
-            MetricCard(
-                "Próximas a vencer", str(datos["proximas_vencer"]), theme.SEMAFORO_AMARILLO, theme.SEMAFORO_AMARILLO_BG
-            ),
-            MetricCard("Vencidas", str(datos["vencidas"]), theme.SEMAFORO_ROJO, theme.SEMAFORO_ROJO_BG),
+            MetricCard("En tiempo", str(datos["en_tiempo"]), "#00A651", "#E8F5E9"),
+            MetricCard("Próximas a vencer", str(datos["proximas_vencer"]), "#F57C00", "#FFF8E1"),
+            MetricCard("Vencidas", str(datos["vencidas"]), "#E53935", "#FFEBEE"),
         ]
         for i, tarjeta in enumerate(tarjetas):
             grilla.addWidget(tarjeta, 0, i)
+        self._tarjetas = tarjetas
         return grilla
+
+    _COLOR_PUNTO = {
+        "VENCIDO": theme.COLORES_SEMAFORO["ROJO"],
+        "CERCA_DE_VENCIMIENTO": theme.COLORES_SEMAFORO["AMARILLO"],
+        "A_TIEMPO": theme.COLORES_SEMAFORO["VERDE"],
+        "COMPLETADO": theme.COLORES_SEMAFORO["VERDE"],
+        "SIN_FECHA": theme.COLORES_SEMAFORO["GRIS"],
+    }
 
     def _panel_atencion_prioritaria(self) -> QFrame:
         panel = self._panel_base("Atención prioritaria")
         layout = panel.layout()
-        for numero, proceso, color, detalle in self._datos["atencion_prioritaria"]:
+        prioritarias = self._datos.get("atencion_prioritaria", [])
+        if not prioritarias:
+            vacio = QLabel("Sin solicitudes prioritarias por ahora.")
+            vacio.setProperty("role", "secondary")
+            layout.addWidget(vacio)
+            return panel
+        for numero, proceso, color, detalle in prioritarias:
             fila = QFrame()
+            fila.setObjectName("filaPrioritaria")
             fila.setStyleSheet(
-                f"background-color: {theme.BG_APP}; border-radius: 8px;"
+                f"QFrame#filaPrioritaria {{ background-color: transparent; border-radius: 8px; }}"
+                f"QFrame#filaPrioritaria:hover {{ background-color: {theme.COLORES['surface_hover']}; }}"
             )
             fila_layout = QHBoxLayout(fila)
-            fila_layout.setContentsMargins(10, 8, 10, 8)
-            fila_layout.addWidget(SemaforoBadge(color, mostrar_texto=False))
-            fila_layout.addWidget(QLabel(f"{numero} · {proceso}"))
+            fila_layout.setContentsMargins(16, 12, 16, 12)
+            fila_layout.setSpacing(10)
+            fila_layout.addWidget(self._punto_color(color))
+            texto = QLabel(f"{numero} · {proceso}")
+            texto.setStyleSheet(f"font-size: 14px; color: {theme.COLORES['on_surface']};")
+            fila_layout.addWidget(texto)
             fila_layout.addStretch()
             lbl_detalle = QLabel(detalle)
-            lbl_detalle.setProperty("role", "secondary")
+            lbl_detalle.setStyleSheet(f"font-size: 12px; color: {theme.COLORES['on_surface_var']};")
             fila_layout.addWidget(lbl_detalle)
             layout.addWidget(fila)
         return panel
 
+    def _punto_color(self, semaforo: str) -> QLabel:
+        color = self._COLOR_PUNTO.get(semaforo, theme.COLORES_SEMAFORO["GRIS"])
+        punto = QLabel()
+        punto.setFixedSize(12, 12)
+        punto.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
+        return punto
+
     def _panel_por_proceso(self) -> QFrame:
         panel = self._panel_base("Solicitudes por proceso")
         layout = panel.layout()
-        for nombre, total, porcentaje in self._datos["por_proceso"]:
+        por_proceso = self._datos.get("por_proceso", [])
+        if not por_proceso:
+            vacio = QLabel("Sin datos por proceso.")
+            vacio.setProperty("role", "secondary")
+            layout.addWidget(vacio)
+            return panel
+        for nombre, total, porcentaje in por_proceso:
             fila_titulo = QHBoxLayout()
-            fila_titulo.addWidget(self._label_secundaria(nombre))
+            lbl_nombre = QLabel(nombre)
+            lbl_nombre.setStyleSheet(f"font-size: 13px; color: {theme.COLORES['on_surface']};")
+            fila_titulo.addWidget(lbl_nombre)
             fila_titulo.addStretch()
-            fila_titulo.addWidget(self._label_secundaria(str(total)))
+            lbl_total = QLabel(str(total))
+            lbl_total.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {theme.COLORES['on_surface']};")
+            fila_titulo.addWidget(lbl_total)
             layout.addLayout(fila_titulo)
 
             barra_fondo = QFrame()
-            barra_fondo.setFixedHeight(6)
-            barra_fondo.setStyleSheet(f"background-color: {theme.BG_APP}; border-radius: 3px;")
+            barra_fondo.setFixedHeight(4)
+            barra_fondo.setStyleSheet(f"background-color: {theme.COLORES['outline_variant']}; border-radius: 2px;")
             barra_layout = QHBoxLayout(barra_fondo)
             barra_layout.setContentsMargins(0, 0, 0, 0)
             barra_rellena = QFrame()
-            barra_rellena.setFixedHeight(6)
-            barra_rellena.setStyleSheet(f"background-color: {theme.ACCENT}; border-radius: 3px;")
-            barra_layout.addWidget(barra_rellena, stretch=porcentaje)
-            barra_layout.addStretch(100 - porcentaje)
+            barra_rellena.setFixedHeight(4)
+            barra_rellena.setStyleSheet(f"background-color: {theme.COLORES['primary']}; border-radius: 2px;")
+            pct = max(0, min(100, int(porcentaje)))
+            barra_layout.addWidget(barra_rellena, stretch=pct)
+            barra_layout.addStretch(100 - pct)
             layout.addWidget(barra_fondo)
+            layout.addSpacing(4)
         return panel
 
     def _panel_base(self, titulo: str) -> QFrame:
         panel = QFrame()
-        panel.setStyleSheet(f"QFrame {{ background-color: {theme.BG_CARD}; border-radius: 10px; }}")
+        panel.setStyleSheet(
+            f"QFrame {{ background-color: {theme.COLORES['surface']}; "
+            f"border: 1px solid {theme.COLORES['outline']}; border-radius: {theme.BORDES['lg']}px; }}"
+        )
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(8)
         lbl = QLabel(titulo)
-        lbl.setStyleSheet("font-weight: 600; font-size: 13px;")
+        lbl.setStyleSheet(f"font-weight: 600; font-size: 16px; color: {theme.COLORES['on_surface']};")
         layout.addWidget(lbl)
         return panel
 

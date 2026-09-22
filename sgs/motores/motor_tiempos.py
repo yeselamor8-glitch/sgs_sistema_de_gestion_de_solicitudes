@@ -126,14 +126,19 @@ def calcular_fecha_limite(
 def calcular_oportunidad_traslado(
     fecha_ingreso: dt.date, fecha_traslado: dt.date, festivos: set[dt.date]
 ) -> int:
-    """Días hábiles transcurridos entre el ingreso y el traslado (columna AC)."""
+    """Días hábiles transcurridos entre el ingreso y el traslado (columna AC):
+    cuenta los días hábiles estrictamente posteriores al ingreso hasta el
+    traslado inclusive. Traslado el mismo día = 0; día hábil siguiente = 1.
+    Equivale a NETWORKDAYS(ingreso, traslado) - 1 de Excel."""
+    if fecha_traslado <= fecha_ingreso:
+        return 0
     dias = 0
     fecha = fecha_ingreso
     while fecha < fecha_traslado:
         fecha += dt.timedelta(days=1)
         if es_dia_habil(fecha, festivos):
             dias += 1
-    return dias - 1
+    return dias
 
 
 def indicador_oportunidad_traslado(dias_habiles_transcurridos: int) -> str:
@@ -143,3 +148,89 @@ def indicador_oportunidad_traslado(dias_habiles_transcurridos: int) -> str:
     if dias_habiles_transcurridos == 2:
         return "CERCA_DE_VENCIMIENTO"
     return "VENCIDO"
+
+
+def calcular_bloque_traslado(
+    fecha_ingreso: dt.date,
+    fecha_traslado: dt.date,
+    prioridad_caso: str | None,
+    eps: str | None,
+    solicitud: str | None,
+    motivo: str | None,
+    parametros: ParametrosTiempo,
+) -> dict:
+    """Todo el bloque calculado del paso de traslado en una sola llamada:
+    fecha límite de respuesta, oportunidad del traslado e indicador."""
+    fecha_limite, regla_aplicada = calcular_fecha_limite(
+        fecha_traslado, prioridad_caso, eps, solicitud, parametros, motivo=motivo
+    )
+    dias = calcular_oportunidad_traslado(fecha_ingreso, fecha_traslado, parametros.festivos)
+    return {
+        "fecha_limite": fecha_limite,
+        "regla_aplicada": regla_aplicada,
+        "oportunidad_dias": dias,
+        "indicador_oportunidad": indicador_oportunidad_traslado(dias),
+    }
+
+
+def calcular_decision(hubo_respuesta: str | None) -> str:
+    """Decisión calculada del paso de respuesta:
+    SI -> CERRAR_SAC (la gestión en SAC se cierra); NO -> REMITIR_ENTE_CONTROL
+    (se remite al ente de control); N_A/sin datos -> N_A."""
+    return {
+        "SI": "CERRAR_SAC",
+        "NO": "REMITIR_ENTE_CONTROL",
+        "N_A": "N_A",
+    }.get((hubo_respuesta or "").strip().upper(), "N_A")
+
+
+def calcular_oportunidad_respuesta(
+    hubo_respuesta: str | None,
+    fecha_respuesta: dt.date | None,
+    fecha_limite_respuesta: dt.date | None,
+    fecha_traslado: dt.date | None = None,
+) -> str:
+    """Oportunidad de la respuesta comparando la fecha de respuesta contra la
+    fecha límite (calendario). SI a tiempo -> OPORTUNA; SI tardía -> INOPORTUNA;
+    NO -> NO_HUBO_RESPUESTA; datos incompletos o sin SI -> INCONSISTENTE.
+
+    Como la maestra (caso AK<AB): si hay respuesta SI con fecha anterior al
+    traslado los datos son inconsistentes, no se comparan contra la límite."""
+    estado = (hubo_respuesta or "").strip().upper()
+    if estado == "NO":
+        return "NO_HUBO_RESPUESTA"
+    if estado == "SI":
+        if fecha_respuesta and fecha_traslado and fecha_respuesta < fecha_traslado:
+            return "INCONSISTENTE"
+        if fecha_respuesta and fecha_limite_respuesta:
+            return "OPORTUNA" if fecha_respuesta <= fecha_limite_respuesta else "INOPORTUNA"
+        return "INCONSISTENTE"
+    return "INCONSISTENTE"
+
+
+def calcular_bloque_respuesta(
+    hubo_respuesta: str | None,
+    fecha_respuesta: dt.date | None,
+    fecha_limite_respuesta: dt.date | None,
+    fecha_traslado: dt.date | None = None,
+) -> dict:
+    """Bloque calculado del paso de respuesta en una sola llamada."""
+    return {
+        "decision": calcular_decision(hubo_respuesta),
+        "oportunidad_respuesta": calcular_oportunidad_respuesta(
+            hubo_respuesta, fecha_respuesta, fecha_limite_respuesta, fecha_traslado
+        ),
+    }
+
+
+def calcular_edad(fecha_nacimiento: dt.date, hoy: dt.date | None = None) -> int | None:
+    """Años cumplidos según fecha de nacimiento. None si no hay fecha."""
+    if fecha_nacimiento is None:
+        return None
+    hoy = dt.date.today() if hoy is None else hoy
+    if fecha_nacimiento > hoy:
+        return 0
+    anios = hoy.year - fecha_nacimiento.year
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        anios -= 1
+    return anios

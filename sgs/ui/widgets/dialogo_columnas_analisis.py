@@ -25,6 +25,10 @@ class DialogoColumnasAnalisis(QDialog):
         self.setWindowTitle("Seleccionar columnas")
         self.resize(320, 420)
 
+        # Orden original de la fuente — lo que restaura "Predeterminado":
+        # todas las columnas visibles, en el orden en que vienen del df.
+        self._columnas_disponibles = list(columnas_disponibles)
+
         # orden: primero las visibles actuales (en su orden), luego el resto
         resto = [c for c in columnas_disponibles if c not in columnas_visibles_actuales]
         self._orden = list(columnas_visibles_actuales) + resto
@@ -51,11 +55,23 @@ class DialogoColumnasAnalisis(QDialog):
         layout.addLayout(fila_mover)
 
         botones = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.RestoreDefaults
         )
         botones.accepted.connect(self.accept)
         botones.rejected.connect(self.reject)
+        botones.button(QDialogButtonBox.StandardButton.RestoreDefaults).setText("Predeterminado")
+        botones.button(QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(
+            self._restablecer_predeterminado
+        )
         layout.addWidget(botones)
+
+    def _restablecer_predeterminado(self) -> None:
+        """Vuelve a la vista predeterminada: todas las columnas de la fuente
+        visibles y en su orden original."""
+        self._orden = list(self._columnas_disponibles)
+        self._poblar(self._columnas_disponibles)
 
     def _poblar(self, visibles: list[str]) -> None:
         self.lista.clear()

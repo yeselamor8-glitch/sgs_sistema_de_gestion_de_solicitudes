@@ -55,34 +55,141 @@ PROCESOS = [
     ("RECLAMACIONES", "Reclamaciones y quejas"),
     ("TRASLADO", "Traslado (EPS/municipio)"),
     ("URGENTES_Y_PRIORITARIOS", "Urgentes y prioritarios"),
+    ("SIN_CLASIFICACION", "Sin clasificación — destino por defecto de las solicitudes que ninguna regla clasifica"),
 ]
 
-# Tabla "por solicitud" — la misma que analizamos en las 18 maestras
-# idénticas (motivo=NULL -> regla general), más los overrides de
-# Reclamación/Queja encontrados en la maestra DISCAPACIDAD.
-REGLAS_TIEMPOS_SOLICITUD = [
-    ("Cita Primer Nivel", None, 3),
-    ("Autorización especialista", None, 10),
-    ("Autorización procedimiento", None, 10),
-    ("Cambio ips", None, 5),
-    ("Entrega de medicamento", None, 3),
-    ("Otra autorización", None, 10),
-    ("Cita Especialista", None, 5),
-    ("Programación de procedimiento", None, 5),
-    ("Traslado eps", None, 0),
-    ("Traslado municipio", None, 0),
-    ("Cambio de régimen", None, 0),
-    ("Disminución o cambio de nivel", None, 15),
-    ("Inconsistencia en documento", None, 15),
-    ("Acreditación de permanencia", None, 15),
-    ("Urgentes y prioritarios", None, 2),
-    # Overrides Reclamación/Queja (hallazgo maestra DISCAPACIDAD — el
-    # Excel original nunca los alcanzaba por el bug del VLOOKUP)
-    ("Cita Primer Nivel", "Queja", 15),
-    ("Autorización especialista", "Queja", 15),
-    ("Portabilidad – Línea telefónica", "Queja", 15),
-    ("Traslado eps", "Queja", 15),
-    ("Cambio de régimen", "Queja", 15),
+# ----------------------------------------------------------------------
+# Reglas de tiempo POR PROCESO — extraídas de las 20 maestras 2026.
+#
+# 18 procesos comparten la MISMA tabla "por solicitud" (verificada: los
+# checks T17C=5, T36C=10 y T51C=15 coinciden en las 18 base) + las 5 EPS
+# con Coosalud=5 (valor adoptado de OTRAS_EPS a las otras 17, decisión del
+# usuario). DISCAPACIDAD tiene SU PROPIA tabla (valores distintos en
+# accesos, traslados y prioridades) + solo 2 EPS + overrides Reclamación/
+# Queja de 15 días.
+# ----------------------------------------------------------------------
+
+# Los 18 procesos con la tabla base (todos excepto DISCAPACIDAD).
+PROCESOS_BASE = [nombre for nombre, _ in PROCESOS if nombre != "DISCAPACIDAD"]
+
+# Tabla "por solicitud" compartida por los 18 procesos base (maestra ACCESO).
+REGLAS_TIEMPOS_SOLICITUD_BASE = [
+    ("Inscripción", 10),
+    ("Inscripción por contribución solidaria", 10),
+    ("Institucional", 10),
+    ("Afiliación excepcional", 10),
+    ("Verificación", 0),
+    ("Aceptación contribución solidaria", 10),
+    ("Disminución o cambio de nivel", 15),
+    ("Acreditación de permanencia", 1),
+    ("Novedad con planillas - Contribución solidaria", 10),
+    ("Inconsistencia en documento", 10),
+    ("Incapacidad", 0),
+    ("Suspensión por Mora", 0),
+    ("Autorización medicamento", 5),
+    ("Autorización procedimiento", 5),
+    ("Autorización especialista", 5),
+    ("Autorización Primer Nivel", 5),
+    ("Otra autorización", 5),
+    ("Autorización No POS", 5),
+    ("Cambio ips", 5),
+    ("Cita Primer Nivel", 5),
+    ("Cita Especialista", 5),
+    ("Programación de procedimiento", 5),
+    ("Entrega de medicamento", 5),
+    ("Novedad copago", 5),
+    ("Historia clínica", 5),
+    ("Urgentes y prioritarios", 5),
+    ("Mlas prácticas", 15),
+    ("Trato deshumanizado", 15),
+    ("Agresión", 15),
+    ("Entrega no pos", 5),
+    ("Línea telefónica", 10),
+    ("Pagina web", 10),
+    ("Correo", 10),
+    ("Discapacidad", 15),
+    ("Eventos de interés en Salud Publica", 2),
+    ("Servicio Social Complementario", 0),
+    ("Servicio Social Para acceder a servicios de salud", 0),
+    ("Servicio Social que sustituye el servicio de salud", 0),
+    ("Resoluciones Vigentes", 0),
+    ("Repatriados", 10),
+    ("Otro", 0),
+    ("N/A", 0),
+    ("Traslado eps", 15),
+    ("Traslado municipio", 15),
+    ("Cambio de régimen", 15),
+]
+
+# Tabla "por solicitud" PROPIA de DISCAPACIDAD (maestra DISCAPACIDAD).
+REGLAS_TIEMPOS_SOLICITUD_DISCAPACIDAD = [
+    ("Inscripción", 10),
+    ("Inscripción por contribución solidaria", 10),
+    ("Institucional", 10),
+    ("Afiliación excepcional", 10),
+    ("Verificación", 0),
+    ("Aceptación contribución solidaria", 10),
+    ("Disminución o cambio de nivel", 15),
+    ("Acreditación de permanencia", 1),
+    ("Novedad con planillas - Contribución solidaria", 10),
+    ("Inconsistencia en documento", 10),
+    ("Incapacidad", 0),
+    ("Suspensión por Mora", 0),
+    ("Autorización medicamento", 3),
+    ("Autorización procedimiento", 10),
+    ("Autorización especialista", 10),
+    ("Autorización Primer Nivel", 10),
+    ("Otra autorización", 10),
+    ("Autorización No POS", 10),
+    ("Cambio ips", 10),
+    ("Cita Primer Nivel", 3),
+    ("Cita Especialista", 10),
+    ("Programación de procedimiento", 10),
+    ("Entrega de medicamento", 3),
+    ("Novedad copago", 0),
+    ("Historia clínica", 0),
+    ("Entrega no pos", 3),
+    ("Línea telefónica", 10),
+    ("Pagina web", 10),
+    ("Correo", 10),
+    ("Cambio de régimen", 0),
+    ("Traslado eps", 0),
+    ("Traslado municipio", 0),
+    ("Discapacidad", 15),
+    ("Eventos de interés en Salud Publica", 2),
+    ("Servicio Social Complementario", 0),
+    ("Servicio Social Para acceder a servicios de salud", 0),
+    ("Servicio Social que sustituye el servicio de salud", 0),
+    ("Resoluciones Vigentes", 0),
+    ("Repatriados", 10),
+    ("Otro", 0),
+    ("N/A", 0),
+]
+
+# Overrides Reclamación/Queja de DISCAPACIDAD (bloque T47-T66 de la
+# maestra): 15 días para estas solicitudes cuando el motivo es una
+# reclamación o queja (la columna D de la maestra).
+OVERRIDES_DISCAPACIDAD = [
+    "Línea telefónica",
+    "Pagina web",
+    "Correo",
+    "Autorización especialista",
+    "Autorización medicamento",
+    "Cambio ips",
+    "Autorización Primer Nivel",
+    "Cita Primer Nivel",
+    "Programación de procedimiento",
+    "Entrega de medicamento",
+    "Historia clínica",
+    "Autorización No POS",
+    "Novedad copago",
+    "Urgentes y prioritarios",
+    "Traslado eps",
+    "Traslado municipio",
+    "Cambio de régimen",
+    "Mlas prácticas",
+    "Trato deshumanizado",
+    "Agresión",
 ]
 
 REGLAS_TIEMPOS_PRIORIDAD = [
@@ -90,14 +197,20 @@ REGLAS_TIEMPOS_PRIORIDAD = [
     ("Priorizado", 2, False),    # días hábiles
 ]
 
-# nombre EPS -> días hábiles. Coosalud=5 confirmado por el usuario
-# (adoptando el valor de la maestra OTRAS_EPS sobre las otras 18).
-REGLAS_TIEMPOS_EPS = [
+# nombre EPS -> días hábiles. Los 18 procesos base adoptan el valor de la
+# maestra OTRAS_EPS (Coosalud=5) sobre las otras 17 (decisión del usuario).
+REGLAS_TIEMPOS_EPS_BASE = [
     ("Savia Salud", 3),
-    ("Suramericana", 3),
+    ("Suramericana EPS", 3),
     ("Coosalud", 5),
     ("Sanitas", 3),
     ("Salud Total", 3),
+]
+
+# DISCAPACIDAD: la maestra solo define 2 EPS (Savia Salud y Suramericana).
+REGLAS_TIEMPOS_EPS_DISCAPACIDAD = [
+    ("Savia Salud", 3),
+    ("Suramericana EPS", 3),
 ]
 
 FESTIVOS_2026 = [
@@ -117,14 +230,33 @@ def sembrar_procesos(db) -> None:
 
 
 def sembrar_tiempos_solicitud(db) -> None:
+    procesos_por_nombre = {p.nombre: p for p in db.execute(select(Proceso)).scalars()}
     existentes = {
-        (r.solicitud, r.motivo) for r in db.execute(select(ReglaTiemposSolicitud)).scalars()
+        (r.proceso_id, r.solicitud, r.motivo) for r in db.execute(select(ReglaTiemposSolicitud)).scalars()
     }
     creados = 0
-    for solicitud, motivo, dias in REGLAS_TIEMPOS_SOLICITUD:
-        if (solicitud, motivo) not in existentes:
-            db.add(ReglaTiemposSolicitud(solicitud=solicitud, motivo=motivo, dias_habiles=dias))
+
+    def agregar(proceso_id: int, solicitud: str, motivo, dias: int) -> None:
+        nonlocal creados
+        if (proceso_id, solicitud, motivo) not in existentes:
+            db.add(ReglaTiemposSolicitud(proceso_id=proceso_id, solicitud=solicitud, motivo=motivo, dias_habiles=dias))
             creados += 1
+
+    for nombre in PROCESOS_BASE:
+        proceso = procesos_por_nombre.get(nombre)
+        if proceso is None:
+            print(f"  [!] Proceso no encontrado, se omite: {nombre}")
+            continue
+        for solicitud, dias in REGLAS_TIEMPOS_SOLICITUD_BASE:
+            agregar(proceso.id, solicitud, None, dias)
+
+    discapacidad = procesos_por_nombre.get("DISCAPACIDAD")
+    if discapacidad is not None:
+        for solicitud, dias in REGLAS_TIEMPOS_SOLICITUD_DISCAPACIDAD:
+            agregar(discapacidad.id, solicitud, None, dias)
+        for solicitud in OVERRIDES_DISCAPACIDAD:
+            agregar(discapacidad.id, solicitud, "Queja", 15)
+
     print(f"Reglas de tiempo por solicitud: {creados} nuevas creadas.")
 
 
@@ -145,21 +277,42 @@ def sembrar_tiempos_prioridad(db) -> None:
 def sembrar_tiempos_eps(db) -> None:
     from sgs.models.orm import CatalogoEps
 
+    procesos_por_nombre = {p.nombre: p for p in db.execute(select(Proceso)).scalars()}
+
     existentes_eps = {e.nombre: e for e in db.execute(select(CatalogoEps)).scalars()}
-    for nombre, _dias in REGLAS_TIEMPOS_EPS:
-        if nombre not in existentes_eps:
+
+    def _eps_id(nombre: str) -> int:
+        nonlocal existentes_eps
+        eps = existentes_eps.get(nombre)
+        if eps is None:
             eps = CatalogoEps(nombre=nombre, activo=True)
             db.add(eps)
             db.flush()
             existentes_eps[nombre] = eps
+        return eps.id
 
-    existentes_reglas = {r.eps_id for r in db.execute(select(ReglaTiemposEps)).scalars()}
+    existentes_reglas = {(r.proceso_id, r.eps_id) for r in db.execute(select(ReglaTiemposEps)).scalars()}
     creados = 0
-    for nombre, dias in REGLAS_TIEMPOS_EPS:
-        eps_id = existentes_eps[nombre].id
-        if eps_id not in existentes_reglas:
-            db.add(ReglaTiemposEps(eps_id=eps_id, dias_habiles=dias))
+
+    def agregar(proceso_id: int, eps_nombre: str, dias: int) -> None:
+        nonlocal creados
+        eps_id = _eps_id(eps_nombre)
+        if (proceso_id, eps_id) not in existentes_reglas:
+            db.add(ReglaTiemposEps(proceso_id=proceso_id, eps_id=eps_id, dias_habiles=dias))
             creados += 1
+
+    for nombre in PROCESOS_BASE:
+        proceso = procesos_por_nombre.get(nombre)
+        if proceso is None:
+            continue
+        for eps_nombre, dias in REGLAS_TIEMPOS_EPS_BASE:
+            agregar(proceso.id, eps_nombre, dias)
+
+    discapacidad = procesos_por_nombre.get("DISCAPACIDAD")
+    if discapacidad is not None:
+        for eps_nombre, dias in REGLAS_TIEMPOS_EPS_DISCAPACIDAD:
+            agregar(discapacidad.id, eps_nombre, dias)
+
     print(f"Catálogo EPS + reglas de tiempo por EPS: {creados} reglas nuevas creadas.")
 
 

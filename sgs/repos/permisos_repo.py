@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from sgs.models.orm import FuncionarioProceso, Permiso, UsuarioPermiso
+from sgs.models.orm import FuncionarioProceso, Permiso, Usuario, UsuarioPermiso
 
 
 class PermisoRepo:
@@ -46,6 +46,24 @@ class FuncionarioProcesoRepo:
     def procesos_de(self, usuario_id: int) -> list[int]:
         stmt = select(FuncionarioProceso.proceso_id).where(FuncionarioProceso.usuario_id == usuario_id)
         return [pid for pid in self.db.execute(stmt).scalars()]
+
+    def usuarios_por_proceso(self, proceso_ids: list[int]) -> dict[int, list[str]]:
+        """Nombres de los funcionarios asignados a cada proceso
+        (sección columnas: 'Funcionario' = usuario(s) que tienen ese
+        proceso). Devuelve {proceso_id: [nombres]} ordenados por nombre."""
+        if not proceso_ids:
+            return {}
+        stmt = (
+            select(FuncionarioProceso.proceso_id, Usuario.nombre)
+            .join(Usuario, Usuario.id == FuncionarioProceso.usuario_id)
+            .where(FuncionarioProceso.proceso_id.in_(proceso_ids))
+        )
+        resultado: dict[int, list[str]] = {}
+        for proceso_id, nombre in self.db.execute(stmt):
+            resultado.setdefault(proceso_id, []).append(nombre)
+        for nombres in resultado.values():
+            nombres.sort()
+        return resultado
 
     def establecer_procesos(self, usuario_id: int, proceso_ids: list[int]) -> None:
         actuales = set(self.procesos_de(usuario_id))

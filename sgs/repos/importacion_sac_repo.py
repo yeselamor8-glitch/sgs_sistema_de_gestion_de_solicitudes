@@ -35,11 +35,7 @@ MAPEO_CAMPOS_CIUDADANO = {
     "fechanacimiento": "fecha_nacimiento",
     "telefono": "telefono",
     "correo": "correo",
-    "municipioorigen": "municipio_origen_id",
-    "municipioresidencia": "municipio_residencia_id",
     "poblacionpriorizada": "poblacion_priorizada",
-    "regimen": "regimen_id",
-    "eps": "eps_id",
     "fecharetiro": "fecha_retiro",
     "entidadresponsable": "entidad_responsable",
 }
@@ -66,8 +62,11 @@ ALIASES_CAMPOS_CIUDADANO = {
     "numerodocumento": ("numerodocumento", "numeroidentificacion", "documento", "numerodoc"),
     "nombreciudadano": ("nombreciudadano", "nombre"),
     "fechanacimiento": ("fechanacimiento", "nacimiento"),
-    "municipioorigen": ("municipioorigen", "municipio_origen"),
-    "municipioresidencia": ("municipioresidencia", "municipio_residencia"),
+    "correo": ("correo", "emailnoidentificado", "correoelectronico", "email"),
+    "municipioorigen": ("municipioorigen", "municipio_origen", "mpioorigensg"),
+    "municipioresidencia": ("municipioresidencia", "municipio_residencia", "codigompio"),
+    "regimen": ("regimen", "regimenafvigentesg", "regimenvigente", "regimengeneral"),
+    "eps": ("eps", "epsvigentesg", "epsafiliacion"),
     "poblacionpriorizada": ("poblacionpriorizada", "grupopoblacional"),
     "entidadresponsable": ("entidadresponsable", "entidad"),
 }
@@ -157,11 +156,6 @@ class ImportacionSacRepo:
                         valor = _valor_fecha(valor)
                         if valor is None:
                             continue
-                    if columna.endswith("_id"):
-                        try:
-                            valor = int(valor)
-                        except (TypeError, ValueError):
-                            continue
                     setattr(ciudadano, columna, valor)
             solicitud.ciudadano_id = ciudadano.id
             self.db.flush()
@@ -181,6 +175,10 @@ class ImportacionSacRepo:
 
         for generico, columna in MAPEO_CAMPOS_SAC.items():
             if generico in fila and fila.get(generico) not in (None, ""):
+                # `estado` (SAC) es editable desde la app (estado operativo);
+                # una reimportación NO debe pisarlo sobre solicitudes existentes.
+                if generico == "estado" and not es_nueva and solicitud.sac_estado:
+                    continue
                 setattr(solicitud, columna, fila.get(generico))
         if not solicitud.sac_tipo_asunto and fila.get("tipo_pqr"):
             solicitud.sac_tipo_asunto = fila["tipo_pqr"]

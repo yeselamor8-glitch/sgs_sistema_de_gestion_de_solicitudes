@@ -111,11 +111,12 @@ class ReglaTiemposSolicitud(Base):
     __tablename__ = "reglas_tiempos_solicitud"
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    proceso_id: Mapped[int] = mapped_column(ForeignKey("procesos.id"), nullable=False)
     solicitud: Mapped[str] = mapped_column(String, nullable=False)
     motivo: Mapped[Optional[str]] = mapped_column(String)  # NULL = regla general
     dias_habiles: Mapped[int] = mapped_column(SmallInteger, nullable=False)
 
-    __table_args__ = (UniqueConstraint("solicitud", "motivo", name="uq_solicitud_motivo"),)
+    __table_args__ = (UniqueConstraint("proceso_id", "solicitud", "motivo", name="uq_proceso_solicitud_motivo"),)
 
 
 class ReglaTiemposPrioridad(Base):
@@ -131,8 +132,11 @@ class ReglaTiemposEps(Base):
     __tablename__ = "reglas_tiempos_eps"
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
-    eps_id: Mapped[int] = mapped_column(ForeignKey("catalogo_eps.id"), unique=True, nullable=False)
+    proceso_id: Mapped[int] = mapped_column(ForeignKey("procesos.id"), nullable=False)
+    eps_id: Mapped[int] = mapped_column(ForeignKey("catalogo_eps.id"), nullable=False)
     dias_habiles: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+
+    __table_args__ = (UniqueConstraint("proceso_id", "eps_id", name="uq_proceso_eps"),)
 
 
 class Permiso(Base):
@@ -329,3 +333,64 @@ class Asignacion(Base):
     origen: Mapped[str] = mapped_column(String, nullable=False)
     motivo_cambio: Mapped[Optional[str]] = mapped_column(Text)
     usuario_que_asigna: Mapped[Optional[int]] = mapped_column(ForeignKey("usuarios.id"))
+
+
+class SolicitudCambio(Base):
+    """Solicitud de cambio (reasignación de proceso o edición de campo)
+    que un funcionario envía para que el administrador apruebe o rechace.
+    Mapea 1:1 la tabla `solicitudes_cambio` de schema.sql."""
+
+    __tablename__ = "solicitudes_cambio"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    solicitud_id: Mapped[int] = mapped_column(ForeignKey("solicitudes.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String, nullable=False)  # reasignacion_proceso | edicion_campo
+
+    proceso_actual_id: Mapped[Optional[int]] = mapped_column(ForeignKey("procesos.id"))
+    proceso_solicitado_id: Mapped[Optional[int]] = mapped_column(ForeignKey("procesos.id"))
+
+    campo: Mapped[Optional[str]] = mapped_column(Text)
+    valor_actual: Mapped[Optional[str]] = mapped_column(Text)
+    valor_propuesto: Mapped[Optional[str]] = mapped_column(Text)
+
+    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+    estado: Mapped[str] = mapped_column(String, default="pendiente")  # pendiente | aprobada | rechazada
+    observacion_admin: Mapped[Optional[str]] = mapped_column(Text)
+
+    solicitado_por: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    aprobado_por: Mapped[Optional[int]] = mapped_column(ForeignKey("usuarios.id"))
+    creado_en: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
+    resuelto_en: Mapped[Optional[dt.datetime]] = mapped_column(DateTime)
+
+
+class Notificacion(Base):
+    """Notificación dirigida a un usuario (aparece en la campana del
+    encabezado). Mapea 1:1 la tabla `notificaciones` de schema.sql."""
+
+    __tablename__ = "notificaciones"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String, nullable=False)
+    mensaje: Mapped[str] = mapped_column(Text, nullable=False)
+    leida: Mapped[bool] = mapped_column(Boolean, default=False)
+    referencia_tipo: Mapped[Optional[str]] = mapped_column(String)
+    referencia_id: Mapped[Optional[int]] = mapped_column(Integer)
+    creado_en: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
+
+
+class Auditoria(Base):
+    """Bitácora genérica de acciones importantes. Mapea 1:1 la tabla
+    `auditoria` de schema.sql (valor_anterior/valor_nuevo son JSONB)."""
+
+    __tablename__ = "auditoria"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[Optional[int]] = mapped_column(ForeignKey("usuarios.id"))
+    accion: Mapped[str] = mapped_column(Text, nullable=False)
+    entidad: Mapped[str] = mapped_column(Text, nullable=False)
+    entidad_id: Mapped[Optional[int]] = mapped_column(Integer)
+    valor_anterior: Mapped[Optional[dict]] = mapped_column(JSON)
+    valor_nuevo: Mapped[Optional[dict]] = mapped_column(JSON)
+    solicitud_relacionada_id: Mapped[Optional[int]] = mapped_column(ForeignKey("solicitudes.id"))
+    fecha: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)

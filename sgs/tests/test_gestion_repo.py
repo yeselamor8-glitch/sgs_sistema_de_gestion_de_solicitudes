@@ -99,3 +99,91 @@ def test_solicitud_inexistente_lanza_error_claro(sesion):
     repo = GestionSolicitudRepo(sesion)
     with pytest.raises(ValueError, match="SAC-NO-EXISTE"):
         repo.actualizar_gestion("SAC-NO-EXISTE", {"estado_gestion": "Solucionada"})
+
+
+def test_traslado_persiste_campos_calculados_de_tiempos(sesion):
+    repo = GestionSolicitudRepo(sesion)
+    repo.actualizar_gestion(
+        "SAC-TEST-001",
+        {
+            "fecha_traslado": "2026-08-24",
+            "fecha_limite_respuesta": "2026-08-28",
+            "oportunidad_dias_habiles": 2,
+            "indicador_oportunidad": "CERCA_DE_VENCIMIENTO",
+        },
+    )
+    sesion.commit()
+
+    solicitud = repo.obtener_por_numero_sac("SAC-TEST-001")
+    from sqlalchemy import select
+
+    traslado = sesion.execute(select(Traslado).where(Traslado.solicitud_id == solicitud.id)).scalar_one()
+    assert traslado.fecha_limite_respuesta == dt.date(2026, 8, 28)
+    assert traslado.oportunidad_dias_habiles == 2
+    assert traslado.indicador_oportunidad == "CERCA_DE_VENCIMIENTO"
+
+
+def test_traslado_acepta_fecha_limite_como_date_no_solo_str(sesion):
+    """Regresión: el caso de uso entrega fecha_limite_respuesta como
+    datetime.date (lo calcula el motor) y el repo debe perseguirlo sin
+    lanzar en strptime."""
+    repo = GestionSolicitudRepo(sesion)
+    repo.actualizar_gestion(
+        "SAC-TEST-001",
+        {
+            "fecha_traslado": "2026-08-24",
+            "fecha_limite_respuesta": dt.date(2026, 8, 28),
+            "oportunidad_dias_habiles": 2,
+            "indicador_oportunidad": "CERCA_DE_VENCIMIENTO",
+        },
+    )
+    sesion.commit()
+
+    solicitud = repo.obtener_por_numero_sac("SAC-TEST-001")
+    from sqlalchemy import select
+
+    traslado = sesion.execute(select(Traslado).where(Traslado.solicitud_id == solicitud.id)).scalar_one()
+    assert traslado.fecha_limite_respuesta == dt.date(2026, 8, 28)
+
+
+def test_estado_sac_escribible_como_estado_operativo(sesion):
+    repo = GestionSolicitudRepo(sesion)
+    repo.actualizar_gestion("SAC-TEST-001", {"estado_sac": "Solucionada"})
+    sesion.commit()
+
+    solicitud = repo.obtener_por_numero_sac("SAC-TEST-001")
+    assert solicitud.sac_estado == "Solucionada"
+
+
+def test_respuesta_persiste_decision_y_oportunidad_calculadas(sesion):
+    """El repo persiste decision/oportunidad_respuesta tal como los entrega el
+    caso de uso (ya resueltos por el motor); no los calcula él."""
+    repo = GestionSolicitudRepo(sesion)
+    repo.actualizar_gestion(
+        "SAC-TEST-001",
+        {
+            "hubo_respuesta": "SI",
+            "fecha_respuesta": "2026-08-26",
+            "decision": "CERRAR_SAC",
+            "oportunidad_respuesta": "OPORTUNA",
+        },
+    )
+    sesion.commit()
+
+    solicitud = repo.obtener_por_numero_sac("SAC-TEST-001")
+    from sqlalchemy import select
+
+    respuesta = sesion.execute(select(Respuesta).where(Respuesta.solicitud_id == solicitud.id)).scalar_one()
+    assert respuesta.decision == "CERRAR_SAC"
+    assert respuesta.oportunidad_respuesta == "OPORTUNA"
+
+
+def test_obtener_fecha_limite_respuesta_lee_el_traslado_vigente(sesion):
+    repo = GestionSolicitudRepo(sesion)
+    repo.actualizar_gestion(
+        "SAC-TEST-001", {"fecha_traslado": "2026-08-24", "fecha_limite_respuesta": "2026-08-28"}
+    )
+    sesion.commit()
+
+    assert repo.obtener_fecha_limite_respuesta("SAC-TEST-001") == dt.date(2026, 8, 28)
+    assert repo.obtener_fecha_limite_respuesta("SAC-TEST-NO-EXISTE") is None

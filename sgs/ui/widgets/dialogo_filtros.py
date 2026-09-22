@@ -11,8 +11,16 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
+
+def _primer_dia_mes_actual() -> QDate:
+    """Primer día natural del mes en curso. El módulo Solicitudes y el
+    diálogo de filtros predeterminan el rango a "mes actual" — desde el
+    1.° del mes hasta hoy."""
+    hoy = QDate.currentDate()
+    return QDate(hoy.year(), hoy.month(), 1)
+
 ESTADOS_GESTION = ["Todos", "En trámite", "Solucionada"]
-SEMAFOROS = ["Todos", "VERDE", "AMARILLO", "ROJO"]
+SEMAFOROS = ["Todos", "A_TIEMPO", "CERCA_DE_VENCIMIENTO", "VENCIDO", "COMPLETADO"]
 
 
 class DialogoFiltros(QDialog):
@@ -35,7 +43,10 @@ class DialogoFiltros(QDialog):
 
         self.fecha_desde = QDateEdit(calendarPopup=True)
         self.fecha_desde.setDisplayFormat("yyyy-MM-dd")
-        self.fecha_desde.setDate(filtros_actuales.get("fecha_desde") or QDate.currentDate().addMonths(-1))
+        self.fecha_desde.setDate(
+            filtros_actuales.get("fecha_desde")
+            or _primer_dia_mes_actual()
+        )
         self.fecha_desde.setSpecialValueText(" ")
 
         self.fecha_hasta = QDateEdit(calendarPopup=True)
@@ -76,7 +87,7 @@ class DialogoFiltros(QDialog):
         layout.addWidget(botones)
 
     def _limpiar(self) -> None:
-        self.fecha_desde.setDate(QDate.currentDate().addMonths(-1))
+        self.fecha_desde.setDate(_primer_dia_mes_actual())
         self.fecha_hasta.setDate(QDate.currentDate())
         self.combo_proceso.setCurrentText("Todos")
         self.combo_estado.setCurrentText("Todos")

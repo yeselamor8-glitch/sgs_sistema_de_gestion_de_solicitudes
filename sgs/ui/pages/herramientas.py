@@ -11,7 +11,7 @@ class HerramientasPage(QWidget):
     separado (sección 25 del documento funcional). La arquitectura para
     registrarlas ya existe (tabla `herramientas` en el schema), pero
     ninguna utilidad concreta se implementa todavía — queda para una
-    siguiente versión, según lo acordado.
+    siguiente versión.
     """
 
     def __init__(self):

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -28,6 +29,8 @@ from sgs.ui.widgets.dialogo_usuario import DialogoUsuario
 class ConfiguracionPage(QWidget):
     """Centro de configuración del sistema (sección 26 del documento
     funcional). Exclusivo del administrador."""
+
+    permisos_cambiados = Signal()
 
     def __init__(self):
         super().__init__()
@@ -71,6 +74,7 @@ class ConfiguracionPage(QWidget):
 
         fila_botones = QHBoxLayout()
         boton_crear = QPushButton("+ Crear usuario")
+        boton_crear.setProperty("variant", "primary")
         boton_crear.clicked.connect(self._crear_usuario)
         boton_estado = QPushButton("Activar/Desactivar seleccionado")
         boton_estado.setProperty("variant", "ghost")
@@ -257,6 +261,7 @@ class ConfiguracionPage(QWidget):
             from sgs.app.casos_de_uso import establecer_permiso
 
             establecer_permiso(usuario_id, "importar_sac", bool(estado))
+            self.permisos_cambiados.emit()
         except Exception as exc:
             QMessageBox.critical(self, "No se pudo guardar el permiso", str(exc))
 
@@ -269,6 +274,7 @@ class ConfiguracionPage(QWidget):
 
         fila_botones = QHBoxLayout()
         boton_agregar = QPushButton("+ Agregar proceso")
+        boton_agregar.setProperty("variant", "primary")
         boton_agregar.clicked.connect(self._crear_proceso)
         boton_quitar = QPushButton("Activar/Desactivar seleccionado")
         boton_quitar.setProperty("variant", "ghost")
@@ -450,6 +456,16 @@ class ConfiguracionPage(QWidget):
     def _tab_tiempos(self) -> QWidget:
         pagina = QWidget()
         layout = QVBoxLayout(pagina)
+
+        fila_proceso = QHBoxLayout()
+        etiqueta_proceso = QLabel("Proceso:")
+        self.combo_proceso_tiempos = QComboBox()
+        self.combo_proceso_tiempos.setMinimumWidth(320)
+        self.combo_proceso_tiempos.currentIndexChanged.connect(self._cargar_tiempos)
+        fila_proceso.addWidget(etiqueta_proceso)
+        fila_proceso.addWidget(self.combo_proceso_tiempos, stretch=1)
+        layout.addLayout(fila_proceso)
+
         subtabs = QTabWidget()
 
         self.tabla_tiempos_solicitud = self._tabla_editable(
@@ -475,6 +491,7 @@ class ConfiguracionPage(QWidget):
         boton_actualizar.setProperty("variant", "ghost")
         boton_actualizar.clicked.connect(self._cargar_tiempos)
         boton_guardar = QPushButton("Guardar tiempos de respuesta")
+        boton_guardar.setProperty("variant", "primary")
         boton_guardar.clicked.connect(self._guardar_tiempos)
         fila_botones.addWidget(boton_actualizar)
         fila_botones.addWidget(boton_guardar)
@@ -484,8 +501,29 @@ class ConfiguracionPage(QWidget):
         self.lbl_tiempos_estado.setProperty("role", "secondary")
         layout.addWidget(self.lbl_tiempos_estado)
 
+        self._cargar_procesos_en_combo()
         self._cargar_tiempos()
         return pagina
+
+    def _cargar_procesos_en_combo(self) -> None:
+        try:
+            from sgs.app.casos_de_uso import listar_procesos
+
+            procesos = [p for p in listar_procesos() if p["activo"] and p["id"] is not None]
+            self._procesos_combo = {p["id"]: p["nombre"] for p in procesos}
+            self.combo_proceso_tiempos.blockSignals(True)
+            self.combo_proceso_tiempos.clear()
+            for pid, nombre in self._procesos_combo.items():
+                self.combo_proceso_tiempos.addItem(nombre, pid)
+            self.combo_proceso_tiempos.blockSignals(False)
+        except Exception:
+            self._procesos_combo = {}
+            self.combo_proceso_tiempos.blockSignals(True)
+            self.combo_proceso_tiempos.clear()
+            self.combo_proceso_tiempos.blockSignals(False)
+
+    def _proceso_tiempos_id(self) -> int | None:
+        return self.combo_proceso_tiempos.currentData()
 
     def _cargar_tiempos(self) -> None:
         try:
@@ -496,19 +534,28 @@ class ConfiguracionPage(QWidget):
                 listar_reglas_tiempos_solicitud,
             )
 
-            self._llenar_tabla(
-                self.tabla_tiempos_solicitud,
-                [[r["solicitud"], r["motivo"], str(r["dias_habiles"])] for r in listar_reglas_tiempos_solicitud()],
-            )
+            proceso_id = self._proceso_tiempos_id()
+            if proceso_id is None:
+                self._llenar_tabla(self.tabla_tiempos_solicitud, [])
+                self._llenar_tabla(self.tabla_tiempos_eps, [])
+            else:
+                self._llenar_tabla(
+                    self.tabla_tiempos_solicitud,
+                    [
+                        [r["solicitud"], r["motivo"], str(r["dias_habiles"])]
+                        for r in listar_reglas_tiempos_solicitud(proceso_id)
+                    ],
+                )
+                self._llenar_tabla(
+                    self.tabla_tiempos_eps,
+                    [[r["eps"], str(r["dias_habiles"])] for r in listar_reglas_tiempos_eps(proceso_id)],
+                )
             self._llenar_tabla(
                 self.tabla_tiempos_prioridad,
                 [
                     [r["prioridad_caso"], str(r["dias_habiles"]), "Sí" if r["es_dia_calendario"] else "No"]
                     for r in listar_reglas_tiempos_prioridad()
                 ],
-            )
-            self._llenar_tabla(
-                self.tabla_tiempos_eps, [[r["eps"], str(r["dias_habiles"])] for r in listar_reglas_tiempos_eps()]
             )
             self._llenar_tabla(
                 self.tabla_festivos, [[f["fecha"], f["descripcion"]] for f in listar_festivos()]
@@ -534,9 +581,14 @@ class ConfiguracionPage(QWidget):
                 guardar_reglas_tiempos_solicitud,
             )
 
-            guardar_reglas_tiempos_solicitud(self._leer_tabla_solicitud())
+            proceso_id = self._proceso_tiempos_id()
+            if proceso_id is None:
+                self.lbl_tiempos_estado.setStyleSheet(f"color: {theme.SEMAFORO_AMARILLO};")
+                self.lbl_tiempos_estado.setText("Selecciona un proceso para guardar las reglas por solicitud y por EPS.")
+                return
+            guardar_reglas_tiempos_solicitud(proceso_id, self._leer_tabla_solicitud())
             guardar_reglas_tiempos_prioridad(self._leer_tabla_prioridad())
-            guardar_reglas_tiempos_eps(self._leer_tabla_eps())
+            guardar_reglas_tiempos_eps(proceso_id, self._leer_tabla_eps())
             guardar_festivos(self._leer_tabla_festivos())
 
             self.lbl_tiempos_estado.setStyleSheet(f"color: {theme.SEMAFORO_VERDE};")
@@ -592,29 +644,30 @@ class ConfiguracionPage(QWidget):
         layout = QVBoxLayout(pagina)
 
         info = QLabel(
-            "Umbral de días hábiles restantes hasta la fecha límite para pasar a cada color "
-            "(misma lógica ya usada en el motor de semaforización)."
+            "Define cuándo una solicitud se marca en AMARILLO (cerca de vencer). "
+            "Una solicitud pasa a amarillo cuando le quedan ese número de días hábiles o menos "
+            "antes de su fecha límite. Con más días queda en blanco (a tiempo); si ya venció, en rojo."
         )
         info.setWordWrap(True)
         info.setProperty("role", "secondary")
         layout.addWidget(info)
 
         formulario = QFormLayout()
-        self.spin_dias_rojo = QSpinBox()
-        self.spin_dias_rojo.setRange(0, 30)
         self.spin_dias_amarillo = QSpinBox()
-        self.spin_dias_amarillo.setRange(0, 30)
-        formulario.addRow("🔴 Rojo si quedan ≤ (días hábiles):", self.spin_dias_rojo)
-        formulario.addRow("🟡 Amarillo si quedan ≤ (días hábiles):", self.spin_dias_amarillo)
+        self.spin_dias_amarillo.setRange(0, 60)
+        formulario.addRow(
+            "Cerca de vencer (amarillo) si faltan N días hábiles o menos:", self.spin_dias_amarillo
+        )
         layout.addLayout(formulario)
 
-        boton_guardar = QPushButton("Guardar parámetros de semaforización")
+        boton_guardar = QPushButton("Guardar semaforización")
+        boton_guardar.setProperty("variant", "primary")
         boton_guardar.clicked.connect(self._guardar_semaforizacion)
         layout.addWidget(boton_guardar)
 
-        self.lbl_semaforo_estado = QLabel("")
-        self.lbl_semaforo_estado.setProperty("role", "secondary")
-        layout.addWidget(self.lbl_semaforo_estado)
+        self.lbl_semaforizacion_estado = QLabel("")
+        self.lbl_semaforizacion_estado.setProperty("role", "secondary")
+        layout.addWidget(self.lbl_semaforizacion_estado)
         layout.addStretch()
 
         self._cargar_semaforizacion()
@@ -625,28 +678,31 @@ class ConfiguracionPage(QWidget):
             from sgs.app.casos_de_uso import obtener_parametros_semaforizacion
 
             parametros = obtener_parametros_semaforizacion()
-            self.spin_dias_rojo.setValue(parametros["dias_rojo"])
-            self.spin_dias_amarillo.setValue(parametros["dias_amarillo"])
+            self.spin_dias_amarillo.setValue(int(parametros.get("dias_amarillo_cerca", 1) or 1))
+            self.lbl_semaforizacion_estado.setText("")
         except Exception:
-            self.spin_dias_rojo.setValue(1)
-            self.spin_dias_amarillo.setValue(2)
-            self.lbl_semaforo_estado.setText("No se pudo conectar con la base de datos — mostrando valores por defecto.")
-            self.lbl_semaforo_estado.setStyleSheet(f"color: {theme.SEMAFORO_AMARILLO};")
+            self.spin_dias_amarillo.setValue(1)
+            self.lbl_semaforizacion_estado.setStyleSheet(f"color: {theme.SEMAFORO_AMARILLO};")
+            self.lbl_semaforizacion_estado.setText(
+                "No se pudo conectar con la base de datos — mostrando el valor por defecto."
+            )
 
     def _guardar_semaforizacion(self) -> None:
-        if self.spin_dias_rojo.value() >= self.spin_dias_amarillo.value():
-            self.lbl_semaforo_estado.setStyleSheet(f"color: {theme.SEMAFORO_ROJO};")
-            self.lbl_semaforo_estado.setText("El umbral rojo debe ser menor que el amarillo.")
-            return
         try:
-            from sgs.app.casos_de_uso import guardar_parametros_semaforizacion
+            from sgs.app.casos_de_uso import (
+                guardar_parametros_semaforizacion,
+                obtener_parametros_semaforizacion,
+            )
 
-            guardar_parametros_semaforizacion(self.spin_dias_rojo.value(), self.spin_dias_amarillo.value())
-            self.lbl_semaforo_estado.setStyleSheet(f"color: {theme.SEMAFORO_VERDE};")
-            self.lbl_semaforo_estado.setText("✅ Guardado.")
+            # Se conserva el valor 'verde_hasta' existente; solo se edita el
+            # umbral de amarillo, que es el que gobierna el color.
+            verde_hasta = obtener_parametros_semaforizacion().get("dias_verde_hasta", 1)
+            guardar_parametros_semaforizacion(verde_hasta, self.spin_dias_amarillo.value())
+            self.lbl_semaforizacion_estado.setStyleSheet(f"color: {theme.SEMAFORO_VERDE};")
+            self.lbl_semaforizacion_estado.setText("✅ Guardado.")
         except Exception as exc:
-            self.lbl_semaforo_estado.setStyleSheet(f"color: {theme.SEMAFORO_ROJO};")
-            self.lbl_semaforo_estado.setText(f"No se pudo guardar: {exc}")
+            self.lbl_semaforizacion_estado.setStyleSheet(f"color: {theme.SEMAFORO_ROJO};")
+            self.lbl_semaforizacion_estado.setText(f"No se pudo guardar: {exc}")
 
     # ------------------------------------------------------------------
     # Reglas de clasificación
@@ -657,33 +713,51 @@ class ConfiguracionPage(QWidget):
 
         info = QLabel(
             "Cada proceso puede tener varias reglas. Dentro de una regla, varios valores en el mismo "
-            "campo son OR; entre campos distintos de la misma regla es AND. Las reglas tipo 'excepción' "
-            "se evalúan primero (ver ejemplo: Migrantes/PPNA sobre Otras EPS)."
+            "campo son OR; entre campos distintos de la misma regla es AND. Las reglas tipo «excepción» "
+            "se evalúan primero. Solo las reglas activas se usan al clasificar."
         )
         info.setWordWrap(True)
         info.setProperty("role", "secondary")
         layout.addWidget(info)
 
-        self.tabla_reglas = QTableWidget()
-        self.tabla_reglas.setColumnCount(4)
-        self.tabla_reglas.setHorizontalHeaderLabels(["Proceso", "Tipo", "Orden", "Condiciones (resumen)"])
-        self.tabla_reglas.horizontalHeader().setStretchLastSection(True)
-        self.tabla_reglas.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        layout.addWidget(self.tabla_reglas)
-
+        fila_botones = QHBoxLayout()
+        boton_crear = QPushButton("+ Crear regla")
+        boton_crear.setProperty("variant", "primary")
+        boton_crear.clicked.connect(self._crear_regla_clasificacion)
+        boton_editar = QPushButton("Editar")
+        boton_editar.setProperty("variant", "ghost")
+        boton_editar.clicked.connect(self._editar_regla_seleccionada)
+        boton_estado = QPushButton("Activar/Desactivar")
+        boton_estado.setProperty("variant", "ghost")
+        boton_estado.clicked.connect(self._alternar_estado_regla)
+        boton_eliminar = QPushButton("Eliminar")
+        boton_eliminar.setProperty("variant", "danger")
+        boton_eliminar.clicked.connect(self._eliminar_regla_seleccionada)
         boton_actualizar = QPushButton("Actualizar lista")
         boton_actualizar.setProperty("variant", "ghost")
         boton_actualizar.clicked.connect(self._cargar_reglas_clasificacion)
-        layout.addWidget(boton_actualizar)
+        for b in (boton_crear, boton_editar, boton_estado, boton_eliminar, boton_actualizar):
+            fila_botones.addWidget(b)
+        fila_botones.addStretch()
+        layout.addLayout(fila_botones)
 
-        nota = QLabel(
-            "Vista de solo consulta por ahora — la edición (agregar/quitar condición, cambiar operador "
-            "y valores) se agrega en una siguiente iteración."
+        self.tabla_reglas = QTableWidget()
+        self.tabla_reglas.setColumnCount(5)
+        self.tabla_reglas.setHorizontalHeaderLabels(
+            ["Proceso", "Tipo", "Orden", "Activa", "Condiciones (resumen)"]
         )
-        nota.setProperty("role", "secondary")
-        nota.setWordWrap(True)
-        layout.addWidget(nota)
+        self.tabla_reglas.horizontalHeader().setStretchLastSection(True)
+        self.tabla_reglas.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.tabla_reglas.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tabla_reglas.verticalHeader().setVisible(False)
+        self.tabla_reglas.cellDoubleClicked.connect(lambda *_: self._editar_regla_seleccionada())
+        layout.addWidget(self.tabla_reglas)
 
+        self.lbl_reglas_estado = QLabel("")
+        self.lbl_reglas_estado.setProperty("role", "secondary")
+        layout.addWidget(self.lbl_reglas_estado)
+
+        self._reglas_actuales: list[dict] = []
         self._cargar_reglas_clasificacion()
         return pagina
 
@@ -691,15 +765,112 @@ class ConfiguracionPage(QWidget):
         try:
             from sgs.app.casos_de_uso import listar_reglas_clasificacion_para_mostrar
 
-            reglas = listar_reglas_clasificacion_para_mostrar()
+            self._reglas_actuales = listar_reglas_clasificacion_para_mostrar()
+            self.lbl_reglas_estado.setText("")
         except Exception:
-            reglas = []
-        self.tabla_reglas.setRowCount(len(reglas))
-        for i, r in enumerate(reglas):
+            self._reglas_actuales = []
+            self.lbl_reglas_estado.setText("No se pudo conectar con la base de datos.")
+        self.tabla_reglas.setRowCount(len(self._reglas_actuales))
+        for i, r in enumerate(self._reglas_actuales):
             self.tabla_reglas.setItem(i, 0, QTableWidgetItem(r["proceso"]))
             self.tabla_reglas.setItem(i, 1, QTableWidgetItem(r["tipo"]))
             self.tabla_reglas.setItem(i, 2, QTableWidgetItem(str(r["orden"])))
-            self.tabla_reglas.setItem(i, 3, QTableWidgetItem(r["resumen"]))
+            self.tabla_reglas.setItem(i, 3, QTableWidgetItem("Sí" if r.get("activo") else "No"))
+            self.tabla_reglas.setItem(i, 4, QTableWidgetItem(r["resumen"]))
+
+    def _regla_seleccionada(self) -> dict | None:
+        fila = self.tabla_reglas.currentRow()
+        if fila < 0 or fila >= len(self._reglas_actuales):
+            return None
+        return self._reglas_actuales[fila]
+
+    def _abrir_dialogo_regla(self, regla: dict | None) -> None:
+        from sgs.app.casos_de_uso import (
+            CAMPOS_CLASIFICACION,
+            OPERADORES_CLASIFICACION,
+            TIPOS_REGLA,
+            actualizar_regla_clasificacion,
+            crear_regla_clasificacion,
+            listar_procesos,
+            obtener_regla_clasificacion,
+        )
+        from sgs.ui.widgets.dialogo_regla_clasificacion import DialogoReglaClasificacion
+
+        try:
+            procesos = [p for p in listar_procesos() if p["id"] is not None]
+        except Exception as exc:
+            QMessageBox.critical(self, "No se pudieron cargar los procesos", str(exc))
+            return
+        if not procesos:
+            QMessageBox.information(self, "Sin procesos", "Primero crea un proceso en la pestaña «Procesos».")
+            return
+
+        datos = None
+        if regla is not None:
+            datos = obtener_regla_clasificacion(regla["id"])
+
+        dialogo = DialogoReglaClasificacion(
+            procesos, CAMPOS_CLASIFICACION, OPERADORES_CLASIFICACION, TIPOS_REGLA, datos, parent=self
+        )
+        if not dialogo.exec():
+            return
+        try:
+            if regla is None:
+                crear_regla_clasificacion(
+                    dialogo.proceso_id(), dialogo.tipo_regla(), dialogo.orden(),
+                    dialogo.condiciones(), dialogo.descripcion(),
+                )
+            else:
+                actualizar_regla_clasificacion(
+                    regla["id"], dialogo.proceso_id(), dialogo.tipo_regla(), dialogo.orden(),
+                    dialogo.condiciones(), dialogo.descripcion(),
+                )
+            self._cargar_reglas_clasificacion()
+        except Exception as exc:
+            QMessageBox.critical(self, "No se pudo guardar la regla", str(exc))
+
+    def _crear_regla_clasificacion(self) -> None:
+        self._abrir_dialogo_regla(None)
+
+    def _editar_regla_seleccionada(self) -> None:
+        regla = self._regla_seleccionada()
+        if regla is None:
+            QMessageBox.information(self, "Selecciona una regla", "Elige una regla de la tabla para editarla.")
+            return
+        self._abrir_dialogo_regla(regla)
+
+    def _alternar_estado_regla(self) -> None:
+        regla = self._regla_seleccionada()
+        if regla is None:
+            QMessageBox.information(self, "Selecciona una regla", "Elige una regla para activar o desactivar.")
+            return
+        try:
+            from sgs.app.casos_de_uso import cambiar_estado_regla_clasificacion
+
+            cambiar_estado_regla_clasificacion(regla["id"], not regla.get("activo"))
+            self._cargar_reglas_clasificacion()
+        except Exception as exc:
+            QMessageBox.critical(self, "No se pudo actualizar", str(exc))
+
+    def _eliminar_regla_seleccionada(self) -> None:
+        regla = self._regla_seleccionada()
+        if regla is None:
+            QMessageBox.information(self, "Selecciona una regla", "Elige una regla para eliminar.")
+            return
+        confirmar = QMessageBox.question(
+            self, "Eliminar regla",
+            f"¿Eliminar la regla de «{regla['proceso']}»? Esta acción no se puede deshacer.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirmar != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            from sgs.app.casos_de_uso import eliminar_regla_clasificacion
+
+            eliminar_regla_clasificacion(regla["id"])
+            self._cargar_reglas_clasificacion()
+        except Exception as exc:
+            QMessageBox.critical(self, "No se pudo eliminar", str(exc))
 
     # ------------------------------------------------------------------
     # Parámetros generales
@@ -718,6 +889,7 @@ class ConfiguracionPage(QWidget):
         layout.addLayout(formulario)
 
         boton_guardar = QPushButton("Guardar parámetros generales")
+        boton_guardar.setProperty("variant", "primary")
         boton_guardar.clicked.connect(self._guardar_parametros_generales)
         layout.addWidget(boton_guardar)
 

@@ -35,6 +35,12 @@ class GestionSolicitudRepo:
             solicitud.observaciones = cambios["observaciones"]
         if "funcionario_id" in cambios:
             solicitud.funcionario_id = cambios["funcionario_id"] or None
+        # `estado_sac` es la EXCEPCIÓN documentada al bloque SAC: es el estado
+        # operativo que la app gestiona desde el detalle (viene del exporte,
+        # pero se actualiza manualmente); los demás campos sac_* siguen siendo
+        # de solo lectura desde la app.
+        if "estado_sac" in cambios:
+            solicitud.sac_estado = cambios["estado_sac"] or None
         solicitud.actualizado_en = dt.datetime.utcnow()
 
         self._upsert_traslado(solicitud.id, cambios)
@@ -45,7 +51,13 @@ class GestionSolicitudRepo:
 
     # ------------------------------------------------------------------
     def _upsert_traslado(self, solicitud_id: int, cambios: dict) -> None:
-        campos = {"fecha_traslado", "institucion_competente"}
+        campos = {
+            "fecha_traslado",
+            "institucion_competente",
+            "fecha_limite_respuesta",
+            "oportunidad_dias_habiles",
+            "indicador_oportunidad",
+        }
         if not campos & cambios.keys():
             return
         fila = self.db.execute(
@@ -58,9 +70,22 @@ class GestionSolicitudRepo:
             fila.fecha_traslado = _a_fecha(cambios["fecha_traslado"])
         if "institucion_competente" in cambios:
             fila.institucion_competente = cambios["institucion_competente"]
+        if "fecha_limite_respuesta" in cambios:
+            fila.fecha_limite_respuesta = _a_fecha(cambios["fecha_limite_respuesta"])
+        if "oportunidad_dias_habiles" in cambios:
+            fila.oportunidad_dias_habiles = cambios["oportunidad_dias_habiles"]
+        if "indicador_oportunidad" in cambios:
+            fila.indicador_oportunidad = cambios["indicador_oportunidad"]
 
     def _upsert_respuesta(self, solicitud_id: int, cambios: dict) -> None:
-        campos = {"hubo_respuesta", "respuesta_entidad", "notificacion_usuario", "fecha_respuesta"}
+        campos = {
+            "hubo_respuesta",
+            "respuesta_entidad",
+            "notificacion_usuario",
+            "fecha_respuesta",
+            "decision",
+            "oportunidad_respuesta",
+        }
         if not campos & cambios.keys():
             return
         fila = self.db.execute(
@@ -78,9 +103,23 @@ class GestionSolicitudRepo:
         if "fecha_respuesta" in cambios:
             fila.fecha_respuesta = _a_fecha(cambios["fecha_respuesta"])
         # decision y oportunidad_respuesta son CALCULADOS (motor_tiempos /
-        # lógica de decisión) — este repo no los escribe directamente;
-        # deben venir ya resueltos en `cambios` por el caso de uso si
-        # corresponde recalcularlos.
+        # lógica de decisión) — el caso de uso los resuelve y vienen aquí ya
+        # calculados para persistirse sin recálculo en este repo.
+        if "decision" in cambios:
+            fila.decision = cambios["decision"]
+        if "oportunidad_respuesta" in cambios:
+            fila.oportunidad_respuesta = cambios["oportunidad_respuesta"]
+
+    def obtener_fecha_limite_respuesta(self, numero_solicitud_sac: str) -> dt.date | None:
+        """Fecha límite vigente del traslado de una solicitud (para comparar
+        contra la fecha de respuesta sin depender de que el traslado se
+        guarde en la misma operación)."""
+        stmt = (
+            select(Traslado.fecha_limite_respuesta)
+            .join(Solicitud, Solicitud.id == Traslado.solicitud_id)
+            .where(Solicitud.numero_solicitud_sac == numero_solicitud_sac)
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
 
     def _upsert_ente_control(self, solicitud_id: int, cambios: dict) -> None:
         campos = {"radicado_ente_control", "entidad_control", "fecha_reporte_control"}
@@ -100,10 +139,14 @@ class GestionSolicitudRepo:
             fila.fecha_reporte = _a_fecha(cambios["fecha_reporte_control"])
 
 
-def _a_fecha(valor: str | None) -> dt.date | None:
+def _a_fecha(valor) -> dt.date | None:
     if not valor:
         return None
+    if isinstance(valor, dt.datetime):
+        return valor.date()
+    if isinstance(valor, dt.date):
+        return valor
     try:
         return dt.datetime.strptime(valor, "%Y-%m-%d").date()
-    except ValueError:
+    except (ValueError, TypeError):
         return None

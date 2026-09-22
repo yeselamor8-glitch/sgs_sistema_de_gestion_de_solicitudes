@@ -117,6 +117,7 @@ CREATE TABLE condiciones_regla (
 
 CREATE TABLE reglas_tiempos_solicitud (
     id              SMALLSERIAL PRIMARY KEY,
+    proceso_id      SMALLINT NOT NULL REFERENCES procesos(id),
     solicitud       TEXT NOT NULL,          -- valor del campo 'solicitud' SAC
     motivo          TEXT,                    -- NULL = aplica sin importar motivo;
                                               -- 'Reclamación'/'Queja' = override específico
@@ -124,7 +125,7 @@ CREATE TABLE reglas_tiempos_solicitud (
                                               -- tiene esta tabla pero el VLOOKUP nunca la alcanza,
                                               -- es un bug que este sistema corrige)
     dias_habiles    SMALLINT NOT NULL,
-    UNIQUE (solicitud, motivo)
+    UNIQUE (proceso_id, solicitud, motivo)
 );
 
 CREATE TABLE reglas_tiempos_prioridad (
@@ -136,8 +137,10 @@ CREATE TABLE reglas_tiempos_prioridad (
 
 CREATE TABLE reglas_tiempos_eps (
     id              SMALLSERIAL PRIMARY KEY,
-    eps_id          SMALLINT NOT NULL REFERENCES catalogo_eps(id) UNIQUE,
-    dias_habiles    SMALLINT NOT NULL
+    proceso_id      SMALLINT NOT NULL REFERENCES procesos(id),
+    eps_id          SMALLINT NOT NULL REFERENCES catalogo_eps(id),
+    dias_habiles    SMALLINT NOT NULL,
+    UNIQUE (proceso_id, eps_id)
 );
 
 CREATE TABLE parametros_semaforizacion (

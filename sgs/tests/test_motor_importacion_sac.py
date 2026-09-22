@@ -1,3 +1,6 @@
+import pytest
+
+from sgs.motores.lector_archivo_sac import leer_archivo_sac
 from sgs.motores.motor_clasificacion import Condicion, Operador, Regla
 from sgs.motores.motor_importacion_sac import (
     ResumenImportacion,
@@ -97,3 +100,20 @@ def test_procesar_archivo_resume_conteos_correctamente():
     assert resumen.nuevos == 2  # las 2 filas con número válido, sin existente previo
     assert resumen.errores == 1
     assert resumen.sin_clasificar == 1
+
+
+def test_procesar_archivo_puebla_duplicados_en_el_resumen():
+    filas = [
+        _fila("SAC-001"),  # repetida en el archivo
+        _fila("SAC-001"),  # repetida en el archivo
+        _fila("SAC-002"),  # ya existe en BD
+    ]
+    existentes = {"SAC-002": _fila("SAC-002")}
+    resumen = procesar_archivo(filas, existentes, [REGLA_ESPECIALISTAS])
+    assert resumen.duplicados_archivo == ("SAC-001",)
+    assert resumen.duplicados_existentes == ("SAC-002",)
+
+
+def test_leer_archivo_sac_rechaza_formato_xls():
+    with pytest.raises(ValueError, match="libro de Excel"):
+        leer_archivo_sac("C:/exporte_viejo.xls")

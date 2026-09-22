@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Sistema de Gestión de Solicitudes")
         self.resize(1200, 760)
         self._usuario_id = usuario_id
+        self._rol = rol
         self._tiene_permiso_importar_sac = rol == "ADMINISTRADOR" or usuario_tiene_permiso(
             usuario_id, "importar_sac"
         )
@@ -96,13 +97,16 @@ class MainWindow(QMainWindow):
             pagina_importar = ImportarSacPage(usuario_id=self._usuario_id)
             pagina_importar.importacion_completada.connect(self._ir_al_dashboard)
             self._registrar_pagina("importar_sac", pagina_importar)
-        self._registrar_pagina("reportes", ReportesPage())
+        self._registrar_pagina("reportes", ReportesPage(usuario_id=self._usuario_id, rol=rol))
         self._registrar_pagina("herramientas", HerramientasPage())
         if rol == "ADMINISTRADOR":
-            self._registrar_pagina("configuracion", ConfiguracionPage())
+            pagina_configuracion = ConfiguracionPage()
+            pagina_configuracion.permisos_cambiados.connect(self.refrescar_acceso_importar_sac)
+            self._registrar_pagina("configuracion", pagina_configuracion)
 
-        # Auditoría se agrega con el mismo patrón `_registrar_pagina`
-        # en la siguiente iteración.
+            from sgs.ui.pages.auditoria import AuditoriaPage
+            self._registrar_pagina("auditoria", AuditoriaPage())
+
         col_layout.addWidget(self.stack)
 
         layout_raiz.addWidget(columna_derecha, stretch=1)
@@ -124,17 +128,45 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.lbl_titulo_pagina)
         layout.addStretch()
 
-        campana = QLabel("🔔 3")  # placeholder — conectar a notificaciones no leídas
-        campana.setCursor(Qt.CursorShape.PointingHandCursor)
-        layout.addWidget(campana)
+        from sgs.ui.widgets.campana_notificaciones import CampanaNotificaciones
+
+        self.campana = CampanaNotificaciones(self._usuario_id, self._rol)
+        layout.addWidget(self.campana)
 
         return barra
+
+    def refrescar_acceso_importar_sac(self) -> None:
+        """Re-evalúa el permiso al momento (señal desde Configuración) y
+        agrega/quita la página y el ítem del sidebar en vivo."""
+        tiene = self._rol == "ADMINISTRADOR" or usuario_tiene_permiso(
+            self._usuario_id, "importar_sac"
+        )
+        if tiene == self._tiene_permiso_importar_sac:
+            return
+        self._tiene_permiso_importar_sac = tiene
+        self.sidebar.actualizar_permiso_importar_sac(tiene)
+
+        clave = "importar_sac"
+        if tiene and clave not in self._paginas:
+            pagina_importar = ImportarSacPage(usuario_id=self._usuario_id)
+            pagina_importar.importacion_completada.connect(self._ir_al_dashboard)
+            self._registrar_pagina(clave, pagina_importar)
+        elif not tiene and clave in self._paginas:
+            widget_anterior = self._paginas.pop(clave)
+            self.stack.removeWidget(widget_anterior)
+            widget_anterior.deleteLater()
+            if self.stack.currentWidget() is None or self.stack.currentWidget() is widget_anterior:
+                self._cambiar_pagina("solicitudes" if "solicitudes" in self._paginas else "mis_solicitudes")
 
     def _cambiar_pagina(self, clave: str) -> None:
         if clave not in self._paginas:
             return  # página aún no implementada en esta iteración
-        self.stack.setCurrentWidget(self._paginas[clave])
+        widget = self._paginas[clave]
+        self.stack.setCurrentWidget(widget)
         self.lbl_titulo_pagina.setText(TITULOS_PAGINA.get(clave, clave))
+        al_mostrar = getattr(widget, "al_mostrar", None)
+        if callable(al_mostrar):
+            al_mostrar()
 
     def _abrir_detalle_solicitud(self, numero_solicitud_sac: str) -> None:
         clave = "detalle_solicitud"

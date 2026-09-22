@@ -40,7 +40,7 @@ class SectionCard(QFrame):
             self._grilla.setColumnStretch(c, 1)
         self._layout.addLayout(self._grilla)
 
-    def agregar_campo(self, etiqueta: str, valor: str, ancho_completo: bool = False) -> None:
+    def agregar_campo(self, etiqueta: str, valor: str, ancho_completo: bool = False) -> QLabel:
         contenedor = QWidget()
         v = QVBoxLayout(contenedor)
         v.setContentsMargins(0, 0, 0, 0)
@@ -48,7 +48,7 @@ class SectionCard(QFrame):
 
         lbl_etiqueta = QLabel(etiqueta)
         lbl_etiqueta.setProperty("role", "secondary")
-        lbl_valor = QLabel(valor if valor else "—")
+        lbl_valor = QLabel(_texto_valor(valor))
         lbl_valor.setWordWrap(True)
         lbl_valor.setStyleSheet("font-size: 13px;")
 
@@ -59,13 +59,14 @@ class SectionCard(QFrame):
             self._grilla.addWidget(contenedor, self._fila_actual, 0, 1, self._columnas)
             self._fila_actual += 1
             self._col_actual = 0
-            return
+            return lbl_valor
 
         self._grilla.addWidget(contenedor, self._fila_actual, self._col_actual)
         self._col_actual += 1
         if self._col_actual >= self._columnas:
             self._col_actual = 0
             self._fila_actual += 1
+        return lbl_valor
 
     def agregar_campo_editable(self, etiqueta: str, widget: QWidget, ancho_completo: bool = False) -> None:
         contenedor = QWidget()
@@ -96,3 +97,18 @@ class SectionCard(QFrame):
             self._col_actual = 0
         self._grilla.addWidget(widget, self._fila_actual, 0, 1, self._columnas)
         self._fila_actual += 1
+
+
+def _texto_valor(valor) -> str:
+    """Normaliza el valor de un campo a texto para el QLabel.
+
+    `agregar_campo` recibe a veces valores numéricos (p. ej. 'Días
+    restantes', que la capa de aplicación entrega como int) — QLabel solo
+    acepta str, así que hay que convertir siempre. Se muestra '—' cuando el
+    valor es None o una cadena vacía; el 0 SÍ se muestra (para 'Días
+    restantes' significa 'vence hoy', que es información válida)."""
+    if valor is None:
+        return "—"
+    if isinstance(valor, str):
+        return valor if valor.strip() else "—"
+    return str(valor)

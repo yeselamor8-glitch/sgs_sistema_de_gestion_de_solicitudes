@@ -26,14 +26,23 @@ def _paleta_clara() -> QPalette:
 
 
 def main() -> int:
+    from sgs.ui.assets_loader import assets
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    # Registrar las fuentes Inter (si están en sgs/assets/fuentes/); es
+    # tolerante a que aún no existan — en ese caso el stylesheet cae a las
+    # alternativas del sistema declaradas en FONT_STACK.
+    assets.cargar_fuentes()
     app.setPalette(_paleta_clara())
     app.setStyleSheet(theme.STYLESHEET_APP)
 
     ventanas: dict[str, object] = {}
 
     def abrir_principal(usuario_id: int, usuario: str, rol: str) -> None:
+        from sgs.app import contexto_sesion
+
+        contexto_sesion.set_actor(usuario_id, usuario, rol)
         try:
             principal = MainWindow(rol=rol, nombre_usuario=usuario, usuario_id=usuario_id)
         except Exception as exc:
@@ -54,6 +63,9 @@ def main() -> int:
             login.close()
 
     def mostrar_login() -> None:
+        from sgs.app import contexto_sesion
+
+        contexto_sesion.limpiar()
         principal = ventanas.pop("principal", None)
         if principal:
             principal.close()

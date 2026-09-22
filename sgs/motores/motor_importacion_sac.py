@@ -173,6 +173,7 @@ def procesar_archivo(
     filas: list[dict], existentes: dict[str, dict], reglas: list[Regla]
 ) -> ResumenImportacion:
     resultados = [procesar_fila(fila, existentes, reglas) for fila in filas]
+    duplicados_archivo, duplicados_existentes = detectar_duplicados(filas, existentes)
 
     def contar(pred) -> int:
         return sum(1 for r in resultados if pred(r))
@@ -186,4 +187,6 @@ def procesar_archivo(
         sin_clasificar=contar(lambda r: r.clasificacion_estado == "sin_clasificar"),
         conflictos=contar(lambda r: r.clasificacion_estado == "conflicto"),
         resultados=tuple(resultados),
+        duplicados_archivo=tuple(duplicados_archivo),
+        duplicados_existentes=tuple(duplicados_existentes),
     )

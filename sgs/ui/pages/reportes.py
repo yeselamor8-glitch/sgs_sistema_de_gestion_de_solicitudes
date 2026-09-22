@@ -39,15 +39,19 @@ class ReportesPage(QWidget):
     cargado temporalmente (sin importarlo a la base operativa) — misma
     UI y mismo motor para ambos casos.
 
-    TODO (siguiente iteración): reemplazar `_datos_ejemplo_sistema()`
-    por un caso de uso real `casos_de_uso.obtener_solicitudes_para_analisis(...)`.
+    La fuente "Datos del sistema" respeta el rol/proceso del usuario
+    (ADMINISTRADOR ve todo; FUNCIONARIO solo sus procesos), reutilizando
+    `casos_de_uso.obtener_solicitudes_para_analisis`.
     """
 
-    def __init__(self):
+    def __init__(self, usuario_id: int | None = None, rol: str | None = None):
         super().__init__()
+        self._usuario_id = usuario_id
+        self._rol = rol
         self._df_original = None
         self._df_resultado = None
         self._columnas_visibles: list[str] = []
+        self._filtros_activos: list = []
 
         contenedor = QScrollArea()
         contenedor.setWidgetResizable(True)
@@ -83,6 +87,7 @@ class ReportesPage(QWidget):
         fila.addWidget(self.radio_archivo)
 
         boton_cargar = QPushButton("Cargar")
+        boton_cargar.setProperty("variant", "primary")
         boton_cargar.clicked.connect(self._cargar_fuente)
         fila.addWidget(boton_cargar)
 
@@ -99,24 +104,53 @@ class ReportesPage(QWidget):
     def _cargar_fuente(self) -> None:
         from sgs.motores.motor_analisis import cargar_dataframe
 
+        from sgs.ui.widgets.tarea_fondo import ejecutar_en_fondo
+
         if self.radio_archivo.isChecked():
-            ruta, _ = QFileDialog.getOpenFileName(self, "Cargar archivo SAC", "", "Exportes SAC (*.xls *.xlsx)")
+            ruta, _ = QFileDialog.getOpenFileName(self, "Cargar archivo SAC", "", "Libro de Excel (*.xlsx)")
             if not ruta:
                 return
-            try:
+
+            def _leer():
                 from sgs.motores.lector_archivo_sac import leer_archivo_sac
 
                 archivo = leer_archivo_sac(ruta)
-                self._df_original = cargar_dataframe(archivo.filas)
-                self.lbl_fuente_estado.setText(f"{len(archivo.filas)} filas cargadas de {ruta.split('/')[-1]}.")
-            except Exception as exc:
-                self.lbl_fuente_estado.setText(f"❌ No se pudo leer el archivo: {exc}")
-                return
-        else:
-            filas = self._datos_ejemplo_sistema()
-            self._df_original = cargar_dataframe(filas)
-            self.lbl_fuente_estado.setText(f"{len(filas)} solicitudes cargadas del sistema.")
+                df = cargar_dataframe(archivo.filas)
+                return df, f"{len(archivo.filas)} filas cargadas de {ruta.split('/')[-1]}."
 
+            ejecutar_en_fondo(
+                self, _leer,
+                on_ok=self._al_cargar_fuente,
+                on_error=lambda exc: self.lbl_fuente_estado.setText(f"❌ No se pudo leer el archivo: {exc}"),
+                mensaje="Leyendo el archivo…",
+            )
+        else:
+            def _consultar():
+                from sgs.app.casos_de_uso import obtener_solicitudes_para_analisis
+
+                filas = obtener_solicitudes_para_analisis(self._usuario_id, self._rol)
+                if not filas:
+                    return None, "No hay solicitudes en el sistema para analizar."
+                return cargar_dataframe(filas), f"{len(filas)} solicitudes cargadas del sistema."
+
+            ejecutar_en_fondo(
+                self, _consultar,
+                on_ok=self._al_cargar_fuente,
+                on_error=lambda exc: self.lbl_fuente_estado.setText(
+                    f"❌ No se pudieron cargar los datos del sistema: {exc}"
+                ),
+                mensaje="Cargando datos del sistema…",
+            )
+
+    def _al_cargar_fuente(self, resultado) -> None:
+        df, mensaje = resultado
+        self.lbl_fuente_estado.setText(mensaje)
+        if df is None:
+            return
+        self._df_original = df
+        # Cargar una fuente nueva reinicia los filtros acumulados.
+        self._filtros_activos = []
+        self._refrescar_lista_filtros()
         self._columnas_visibles = list(self._df_original.columns)
         self._actualizar_listas_columnas()
         self._df_resultado = self._df_original
@@ -125,29 +159,52 @@ class ReportesPage(QWidget):
     # ------------------------------------------------------------------
     def _seccion_filtros(self) -> SectionCard:
         card = SectionCard("Filtrar", columnas=1)
-        fila = QHBoxLayout()
+        contenedor = QVBoxLayout()
+        contenedor.setSpacing(8)
 
+        fila_editor = QHBoxLayout()
         self.combo_filtro_columna = QComboBox()
         self.combo_filtro_operador = QComboBox()
         self.combo_filtro_operador.addItems(["igual_a", "distinto_de", "contiene", "mayor_que", "menor_que"])
         self.campo_filtro_valor = QLineEdit()
         self.campo_filtro_valor.setPlaceholderText("Valor")
 
-        boton_aplicar = QPushButton("Filtrar")
-        boton_aplicar.clicked.connect(self._aplicar_filtro)
+        boton_agregar = QPushButton("Agregar filtro")
+        boton_agregar.setProperty("variant", "primary")
+        boton_agregar.clicked.connect(self._agregar_filtro)
         boton_columnas = QPushButton("⚙️ Seleccionar columnas")
         boton_columnas.setProperty("variant", "ghost")
         boton_columnas.clicked.connect(self._abrir_seleccion_columnas)
 
-        fila.addWidget(self.combo_filtro_columna)
-        fila.addWidget(self.combo_filtro_operador)
-        fila.addWidget(self.campo_filtro_valor)
-        fila.addWidget(boton_aplicar)
-        fila.addStretch()
-        fila.addWidget(boton_columnas)
+        fila_editor.addWidget(self.combo_filtro_columna)
+        fila_editor.addWidget(self.combo_filtro_operador)
+        fila_editor.addWidget(self.campo_filtro_valor)
+        fila_editor.addWidget(boton_agregar)
+        fila_editor.addStretch()
+        fila_editor.addWidget(boton_columnas)
+        contenedor.addLayout(fila_editor)
+
+        # Lista de filtros activos (se aplican todos en conjunto — AND).
+        fila_activos = QHBoxLayout()
+        self.lista_filtros_activos = QListWidget()
+        self.lista_filtros_activos.setFixedHeight(72)
+        fila_activos.addWidget(self.lista_filtros_activos, stretch=1)
+
+        columna_botones = QVBoxLayout()
+        boton_quitar = QPushButton("Quitar")
+        boton_quitar.setProperty("variant", "ghost")
+        boton_quitar.clicked.connect(self._quitar_filtro_seleccionado)
+        boton_limpiar = QPushButton("Limpiar filtros")
+        boton_limpiar.setProperty("variant", "ghost")
+        boton_limpiar.clicked.connect(self._limpiar_filtros)
+        columna_botones.addWidget(boton_quitar)
+        columna_botones.addWidget(boton_limpiar)
+        columna_botones.addStretch()
+        fila_activos.addLayout(columna_botones)
+        contenedor.addLayout(fila_activos)
 
         widget = QWidget()
-        widget.setLayout(fila)
+        widget.setLayout(contenedor)
         card.agregar_widget_ancho_completo(widget)
         return card
 
@@ -159,17 +216,47 @@ class ReportesPage(QWidget):
             self._columnas_visibles = dialogo.columnas_seleccionadas()
             self._refrescar_tabla_resultado()
 
-    def _aplicar_filtro(self) -> None:
+    def _agregar_filtro(self) -> None:
         if self._df_original is None:
             return
-        from sgs.motores.motor_analisis import Filtro, aplicar_filtros
+        from sgs.motores.motor_analisis import Filtro
 
         columna = self.combo_filtro_columna.currentText()
         valor = self.campo_filtro_valor.text().strip()
+        if not columna or not valor:
+            return
+        self._filtros_activos.append(Filtro(columna, self.combo_filtro_operador.currentText(), valor))
+        self.campo_filtro_valor.clear()
+        self._refrescar_lista_filtros()
+        self._aplicar_filtros_activos()
+
+    def _quitar_filtro_seleccionado(self) -> None:
+        fila = self.lista_filtros_activos.currentRow()
+        if 0 <= fila < len(self._filtros_activos):
+            del self._filtros_activos[fila]
+            self._refrescar_lista_filtros()
+            self._aplicar_filtros_activos()
+
+    def _limpiar_filtros(self) -> None:
+        if not self._filtros_activos:
+            return
+        self._filtros_activos = []
+        self._refrescar_lista_filtros()
+        self._aplicar_filtros_activos()
+
+    def _refrescar_lista_filtros(self) -> None:
+        self.lista_filtros_activos.clear()
+        for f in self._filtros_activos:
+            self.lista_filtros_activos.addItem(QListWidgetItem(f"{f.columna}  {f.operador}  {f.valor}"))
+
+    def _aplicar_filtros_activos(self) -> None:
+        if self._df_original is None:
+            return
+        from sgs.motores.motor_analisis import aplicar_filtros
+
         base = self._df_original
-        if columna and valor:
-            filtro = Filtro(columna, self.combo_filtro_operador.currentText(), valor)
-            base = aplicar_filtros(base, [filtro])
+        if self._filtros_activos:
+            base = aplicar_filtros(base, self._filtros_activos)
         self._df_resultado = base
         self._refrescar_tabla_resultado()
 
@@ -198,6 +285,7 @@ class ReportesPage(QWidget):
         fila.addWidget(self.combo_agrupar_funcion)
 
         boton_agrupar = QPushButton("Agrupar")
+        boton_agrupar.setProperty("variant", "primary")
         boton_agrupar.clicked.connect(self._aplicar_agrupacion)
         fila.addWidget(boton_agrupar)
 
@@ -255,6 +343,7 @@ class ReportesPage(QWidget):
         fila.addWidget(self.combo_pivote_funcion)
 
         boton_generar = QPushButton("Generar tabla dinámica")
+        boton_generar.setProperty("variant", "primary")
         boton_generar.clicked.connect(self._generar_tabla_dinamica)
         fila.addWidget(boton_generar)
 
@@ -295,6 +384,7 @@ class ReportesPage(QWidget):
         fila_botones.addWidget(boton_grafico)
 
         boton_exportar = QPushButton("Exportar a Excel")
+        boton_exportar.setProperty("variant", "primary")
         boton_exportar.clicked.connect(self._exportar_excel)
         fila_botones.addWidget(boton_exportar)
 
@@ -398,14 +488,3 @@ class ReportesPage(QWidget):
             self.lbl_error_resultado.setStyleSheet(f"color: {theme.SEMAFORO_ROJO};")
             self.lbl_error_resultado.setText(f"No se pudo exportar: {exc}")
 
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _datos_ejemplo_sistema() -> list[dict]:
-        # Placeholder — se reemplaza por casos_de_uso.obtener_solicitudes_para_analisis(...)
-        return [
-            {"numero_solicitud_sac": "SAC-004821", "proceso": "Traslado", "eps": "Savia Salud", "estado_gestion": "En trámite", "fecha_ingreso": "2026-08-05", "dias_respuesta": 5},
-            {"numero_solicitud_sac": "SAC-004822", "proceso": "Traslado", "eps": "Suramericana", "estado_gestion": "Solucionada", "fecha_ingreso": "2026-08-20", "dias_respuesta": 3},
-            {"numero_solicitud_sac": "SAC-004902", "proceso": "Especialistas", "eps": "Savia Salud", "estado_gestion": "En trámite", "fecha_ingreso": "2026-09-01", "dias_respuesta": 10},
-            {"numero_solicitud_sac": "SAC-004917", "proceso": "Urgentes y prioritarios", "eps": "Suramericana", "estado_gestion": "En trámite", "fecha_ingreso": "2026-09-02", "dias_respuesta": 2},
-            {"numero_solicitud_sac": "SAC-004930", "proceso": "Acceso a los servicios de salud", "eps": "Savia Salud", "estado_gestion": "Solucionada", "fecha_ingreso": "2026-09-02", "dias_respuesta": 6},
-        ]

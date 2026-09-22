@@ -5,7 +5,13 @@ from PySide6.QtWidgets import QLabel, QWidget, QHBoxLayout
 
 from sgs.ui import theme
 
-ETIQUETAS = {"VERDE": "En tiempo", "AMARILLO": "Próxima a vencer", "ROJO": "Vencida"}
+ETIQUETAS = {
+    "A_TIEMPO": "A tiempo",
+    "CERCA_DE_VENCIMIENTO": "Cerca de vencimiento",
+    "VENCIDO": "Vencida",
+    "COMPLETADO": "Completada",
+    "SIN_FECHA": "Sin fechas",
+}
 
 
 class SemaforoBadge(QWidget):
@@ -14,20 +20,34 @@ class SemaforoBadge(QWidget):
 
     def __init__(self, color: str, mostrar_texto: bool = True, parent: QWidget | None = None):
         super().__init__(parent)
-        fg, bg = theme.SEMAFORO_COLORES.get(color, theme.SEMAFORO_COLORES["VERDE"])
+        self._texto_label: QLabel | None = None
+        self._punto_label = QLabel("●")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 3, 10, 3)
         layout.setSpacing(6)
 
-        punto = QLabel("●")
-        punto.setStyleSheet(f"color: {fg}; font-size: 10px;")
-        layout.addWidget(punto)
+        self._punto_label.setStyleSheet("font-size: 10px;")
+        layout.addWidget(self._punto_label)
 
         if mostrar_texto:
-            texto = QLabel(ETIQUETAS.get(color, color))
-            texto.setStyleSheet(f"color: {fg}; font-weight: 500; font-size: 12px;")
-            layout.addWidget(texto)
+            self._texto_label = QLabel()
+            self._texto_label.setStyleSheet("font-weight: 500; font-size: 12px;")
+            layout.addWidget(self._texto_label)
 
-        self.setStyleSheet(f"background-color: {bg}; border-radius: 10px;")
+        self._color_actual: str | None = None
+        self.cambiar_color(color)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+    def cambiar_color(self, color: str) -> None:
+        """Actualiza estado visual (color, texto y fondo) sin recrear el widget —
+        permite refrescar en vivo el semáforo (ej. traslado recién elegido)."""
+        fg, bg = theme.SEMAFORO_COLORES.get(
+            color, theme.SEMAFORO_COLORES.get("SIN_FECHA", ("#9AA1AC", "#EEF0F3"))
+        )
+        self._color_actual = color
+        self._punto_label.setStyleSheet(f"color: {fg}; font-size: 10px;")
+        if self._texto_label is not None:
+            self._texto_label.setText(ETIQUETAS.get(color, color))
+            self._texto_label.setStyleSheet(f"color: {fg}; font-weight: 500; font-size: 12px;")
+        self.setStyleSheet(f"background-color: {bg}; border-radius: 10px;")

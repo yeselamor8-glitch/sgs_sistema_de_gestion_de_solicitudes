@@ -5,6 +5,13 @@ Reset completo de la base de datos:
 3. Ejecuta el seed inicial
 """
 import sys
+
+# Blindaje para Windows: algunas consolas (PowerShell con code page
+# cp1252) truenan con UnicodeEncodeError si imprime emojis/acentos.
+# Forzamos UTF-8 en la salida (mismo guard que seed_inicial.py).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, '.')
 
 from sgs.config.db import engine
