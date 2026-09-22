@@ -53,26 +53,42 @@ class LoginWindow(QWidget):
             """
         )
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(48, 44, 48, 40)
-        layout.setSpacing(16)
+        layout.setContentsMargins(32, 28, 32, 28)
+        layout.setSpacing(14)
 
-        # El logo va centrado; el texto corporativo queda alineado a la izquierda.
+        # Marca institucional más limpia: el logo en un bloque blanco con brillo,
+        # y el nombre corporativo bajo la marca, alineado a la izquierda.
+        marca = QFrame()
+        marca.setStyleSheet(
+            """
+            QFrame {
+                background: rgba(255,255,255,0.12);
+                border: 1px solid rgba(255,255,255,0.22);
+                border-radius: 18px;
+            }
+            """
+        )
+        marca_layout = QVBoxLayout(marca)
+        marca_layout.setContentsMargins(20, 20, 20, 18)
+
         logo = assets.logo_principal()
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         if not logo.isNull():
             lbl_logo.setPixmap(
-                logo.scaledToWidth(220, Qt.TransformationMode.SmoothTransformation)
+                logo.scaledToWidth(180, Qt.TransformationMode.SmoothTransformation)
             )
         else:
             lbl_logo.setText("Alcaldía de Medellín")
             lbl_logo.setStyleSheet("color: white; font-size: 20px; font-weight: 700;")
-        layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignHCenter)
+        marca_layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        layout.addWidget(marca, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         siglas = QLabel("SGS")
         siglas.setAlignment(Qt.AlignmentFlag.AlignLeft)
         siglas.setStyleSheet(
-            "color: white; font-size: 34px; font-weight: 800; letter-spacing: 6px;"
+            "color: white; font-size: 30px; font-weight: 800; letter-spacing: 8px;"
         )
         layout.addWidget(siglas)
 
@@ -83,27 +99,27 @@ class LoginWindow(QWidget):
         )
         layout.addWidget(subtitulo_marca)
 
-        layout.addStretch()
+        layout.addStretch(1)
 
         titulo = QLabel("Bienvenido")
         titulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        titulo.setStyleSheet("color: white; font-size: 30px; font-weight: 700;")
+        titulo.setStyleSheet("color: white; font-size: 28px; font-weight: 700;")
         subtitulo = QLabel("Gestiona tus solicitudes\nde forma sencilla y segura")
         subtitulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        subtitulo.setStyleSheet("color: rgba(255,255,255,0.92); font-size: 17px; font-weight: 500;")
+        subtitulo.setStyleSheet("color: rgba(255,255,255,0.92); font-size: 16px; font-weight: 500;")
         descripcion = QLabel(
             "Gestiona las solicitudes ciudadanas provenientes de SAC "
             "desde un solo lugar."
         )
         descripcion.setAlignment(Qt.AlignmentFlag.AlignLeft)
         descripcion.setWordWrap(True)
-        descripcion.setStyleSheet("color: rgba(255,255,255,0.80); font-size: 13px;")
+        descripcion.setStyleSheet("color: rgba(255,255,255,0.80); font-size: 12px;")
 
         layout.addWidget(titulo)
         layout.addWidget(subtitulo)
-        layout.addSpacing(6)
+        layout.addSpacing(4)
         layout.addWidget(descripcion)
-        layout.addStretch()
+        layout.addStretch(2)
 
         pie = QLabel("Secretaría de Salud")
         pie.setAlignment(Qt.AlignmentFlag.AlignLeft)
