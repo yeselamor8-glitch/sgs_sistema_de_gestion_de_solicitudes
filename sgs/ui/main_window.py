@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self.resize(1200, 760)
         self._usuario_id = usuario_id
         self._rol = rol
+        self._nombre_usuario = nombre_usuario
         self._tiene_permiso_importar_sac = rol == "ADMINISTRADOR" or usuario_tiene_permiso(
             usuario_id, "importar_sac"
         )
@@ -118,15 +119,59 @@ class MainWindow(QMainWindow):
 
     def _encabezado(self) -> QWidget:
         barra = QWidget()
-        barra.setFixedHeight(52)
-        barra.setStyleSheet("background-color: transparent; border-bottom: 1px solid #E3E5E9;")
+        barra.setFixedHeight(58)
+        barra.setStyleSheet(
+            "background-color: #FFFFFF; border-bottom: 1px solid #E2E8F0;"
+        )
         layout = QHBoxLayout(barra)
         layout.setContentsMargins(24, 0, 24, 0)
+        layout.setSpacing(10)
+
+        # Migas de pan / indicador de sección
+        badge_sgs = QLabel("SGS")
+        badge_sgs.setStyleSheet(
+            "background-color: #E0F2FE; color: #0284C7; font-weight: 800; "
+            "font-size: 11px; padding: 3px 8px; border-radius: 6px;"
+        )
+        layout.addWidget(badge_sgs)
+
+        separador_miga = QLabel("/")
+        separador_miga.setStyleSheet("color: #94A3B8; font-size: 13px; font-weight: 500;")
+        layout.addWidget(separador_miga)
 
         self.lbl_titulo_pagina = QLabel("Dashboard")
-        self.lbl_titulo_pagina.setStyleSheet("font-weight: 600; font-size: 14px;")
+        self.lbl_titulo_pagina.setStyleSheet("font-weight: 700; font-size: 15px; color: #0F172A;")
         layout.addWidget(self.lbl_titulo_pagina)
         layout.addStretch()
+
+        # Pastilla de usuario y rol
+        user_chip = QWidget()
+        user_chip.setStyleSheet("background: transparent; border: none;")
+        user_layout = QHBoxLayout(user_chip)
+        user_layout.setContentsMargins(0, 0, 0, 0)
+        user_layout.setSpacing(8)
+
+        lbl_nombre = QLabel(self._nombre_usuario)
+        lbl_nombre.setStyleSheet("font-weight: 600; font-size: 13px; color: #1E293B;")
+        user_layout.addWidget(lbl_nombre)
+
+        color_rol_bg = "#E0F2FE" if self._rol == "ADMINISTRADOR" else "#DCFCE7"
+        color_rol_fg = "#0369A1" if self._rol == "ADMINISTRADOR" else "#15803D"
+        lbl_rol = QLabel(self._rol.capitalize())
+        lbl_rol.setStyleSheet(
+            f"background-color: {color_rol_bg}; color: {color_rol_fg}; "
+            "font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px;"
+        )
+        user_layout.addWidget(lbl_rol)
+        layout.addWidget(user_chip)
+
+        # Separador vertical
+        from PySide6.QtWidgets import QFrame
+        sep_v = QFrame()
+        sep_v.setFrameShape(QFrame.Shape.VLine)
+        sep_v.setFixedHeight(22)
+        sep_v.setStyleSheet("background-color: #E2E8F0; border: none; margin: 0 4px;")
+        layout.addWidget(sep_v)
 
         from sgs.ui.widgets.campana_notificaciones import CampanaNotificaciones
 
@@ -164,6 +209,7 @@ class MainWindow(QMainWindow):
         widget = self._paginas[clave]
         self.stack.setCurrentWidget(widget)
         self.lbl_titulo_pagina.setText(TITULOS_PAGINA.get(clave, clave))
+        self.sidebar.seleccionar_sin_emitir(clave)
         al_mostrar = getattr(widget, "al_mostrar", None)
         if callable(al_mostrar):
             al_mostrar()

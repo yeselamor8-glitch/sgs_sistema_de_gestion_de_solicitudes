@@ -21,7 +21,7 @@ class DefinicionColumna:
 
 COLUMNAS_DISPONIBLES: list[DefinicionColumna] = [
     DefinicionColumna("numero_solicitud_sac", "N.° solicitud SAC", 140),
-    DefinicionColumna("semaforo", "Semáforo", 90),
+    DefinicionColumna("semaforo", "Semáforo", 155),
     DefinicionColumna("nombre_ciudadano", "Ciudadano", 200),
     DefinicionColumna("documento", "Documento", 120),
     DefinicionColumna("proceso", "Proceso", 190),

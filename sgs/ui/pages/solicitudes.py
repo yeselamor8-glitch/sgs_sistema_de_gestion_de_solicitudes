@@ -72,6 +72,8 @@ class SolicitudesPage(QWidget):
         self.tabla.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tabla.verticalHeader().setVisible(False)
+        self.tabla.verticalHeader().setDefaultSectionSize(40)
+        self.tabla.setAlternatingRowColors(True)
         self.tabla.horizontalHeader().setSectionsMovable(True)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         # Orden manual por clic: lo resolvemos nosotros en Python (el sort
@@ -104,12 +106,15 @@ class SolicitudesPage(QWidget):
     # Barra superior: búsqueda, filtros, personalizar columnas
     # ------------------------------------------------------------------
     def _barra_superior(self) -> QVBoxLayout:
+        from PySide6.QtCore import QSize
+        from sgs.ui.assets_loader import assets
+
         contenedor = QVBoxLayout()
         contenedor.setSpacing(10)
 
         fila_titulo = QHBoxLayout()
         titulo = QLabel(self._titulo)
-        titulo.setProperty("role", "title")
+        titulo.setStyleSheet("font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.3px;")
         fila_titulo.addWidget(titulo)
         fila_titulo.addStretch()
         contenedor.addLayout(fila_titulo)
@@ -122,33 +127,45 @@ class SolicitudesPage(QWidget):
         self.campo_documento = QLineEdit()
         self.campo_documento.setPlaceholderText("Documento")
         self.campo_nombre = QLineEdit()
-        self.campo_nombre.setPlaceholderText("Nombre")
+        self.campo_nombre.setPlaceholderText("Nombre del ciudadano")
 
         for campo in (self.campo_numero, self.campo_documento, self.campo_nombre):
             campo.setFixedWidth(180)
             campo.returnPressed.connect(self._cargar_datos)
             fila_busqueda.addWidget(campo)
 
-        boton_filtros = QPushButton("Filtros")
+        boton_filtros = QPushButton(" Filtros")
+        boton_filtros.setIcon(assets.icono("filtro"))
+        boton_filtros.setIconSize(QSize(16, 16))
         boton_filtros.setProperty("variant", "ghost")
+        boton_filtros.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_filtros.clicked.connect(self._abrir_filtros)
         self.boton_filtros = boton_filtros
         fila_busqueda.addWidget(boton_filtros)
 
-        boton_buscar = QPushButton("Buscar")
+        boton_buscar = QPushButton(" Buscar")
+        boton_buscar.setIcon(assets.icono("buscar"))
+        boton_buscar.setIconSize(QSize(16, 16))
         boton_buscar.setProperty("variant", "primary")
+        boton_buscar.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_buscar.clicked.connect(self._cargar_datos)
         fila_busqueda.addWidget(boton_buscar)
 
-        boton_reasignar = QPushButton("Solicitar reasignación")
+        boton_reasignar = QPushButton(" Reasignar")
+        boton_reasignar.setIcon(assets.icono("herramientas"))
+        boton_reasignar.setIconSize(QSize(16, 16))
         boton_reasignar.setProperty("variant", "ghost")
+        boton_reasignar.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_reasignar.clicked.connect(self._solicitar_reasignacion)
         fila_busqueda.addWidget(boton_reasignar)
 
         fila_busqueda.addStretch()
 
-        boton_columnas = QPushButton("⚙️ Personalizar columnas")
+        boton_columnas = QPushButton(" Columnas")
+        boton_columnas.setIcon(assets.icono("configuracion"))
+        boton_columnas.setIconSize(QSize(16, 16))
         boton_columnas.setProperty("variant", "ghost")
+        boton_columnas.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_columnas.clicked.connect(self._abrir_personalizar_columnas)
         fila_busqueda.addWidget(boton_columnas)
 
@@ -380,12 +397,16 @@ class SolicitudesPage(QWidget):
             or self.campo_nombre.text().strip()
             or self._filtros
         )
+        self.lbl_contador.setStyleSheet(
+            "background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; "
+            "padding: 8px 14px; color: #475569; font-size: 12px; font-weight: 500;"
+        )
         if hay_criterios:
-            self.lbl_contador.setText(f"Solicitudes encontradas: {total}")
+            self.lbl_contador.setText(f"📋  <b>{total}</b> solicitudes encontradas con los filtros actuales.")
         else:
             self.lbl_contador.setText(
-                f"Total de solicitudes en gestión: {total} "
-                "(las completadas no se muestran por defecto; usa un filtro para verlas)"
+                f"📋  <b>{total}</b> solicitudes en gestión activa · Mes en curso "
+                "(las completadas no se muestran por defecto; usa Filtros para verlas)"
             )
 
     def _cargar_datos(self) -> None:
@@ -433,6 +454,7 @@ class SolicitudesPage(QWidget):
 
             boton_detalle = QPushButton("Detalle →")
             boton_detalle.setProperty("variant", "ghost")
+            boton_detalle.setCursor(Qt.CursorShape.PointingHandCursor)
             numero = solicitud["numero_solicitud_sac"]
             boton_detalle.clicked.connect(lambda checked, n=numero: self.solicitud_seleccionada.emit(n))
             self.tabla.setCellWidget(fila_idx, len(self._columnas_visibles_actuales), boton_detalle)

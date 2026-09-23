@@ -26,11 +26,16 @@ class CampanaNotificaciones(QWidget):
         self._usuario_id = usuario_id
         self._rol = rol
 
+        from PySide6.QtCore import QSize
+        from sgs.ui.assets_loader import assets
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self._boton = QPushButton("🔔")
-        self._boton.setProperty("variant", "ghost")
+        self._boton = QPushButton()
+        self._boton.setIcon(assets.icono("campana"))
+        self._boton.setIconSize(QSize(18, 18))
         self._boton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._boton.setToolTip("Notificaciones")
         self._boton.clicked.connect(self._abrir_panel)
         layout.addWidget(self._boton)
 
@@ -46,20 +51,47 @@ class CampanaNotificaciones(QWidget):
             except Exception:
                 total = 0
         if total:
-            self._boton.setText(f"🔔  {total}")
+            self._boton.setText(f" {total}")
             self._boton.setStyleSheet(
-                f"QPushButton {{ color: {theme.SEMAFORO_ROJO}; font-weight: 700; "
-                f"border: 1px solid {theme.BORDER}; }}"
+                """
+                QPushButton {
+                    background-color: #FEF2F2;
+                    border: 1.5px solid #FCA5A5;
+                    border-radius: 8px;
+                    padding: 6px 12px;
+                    color: #DC2626;
+                    font-weight: 700;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #FEE2E2;
+                    border-color: #EF4444;
+                }
+                """
             )
         else:
-            self._boton.setText("🔔")
-            self._boton.setStyleSheet("")
+            self._boton.setText("")
+            self._boton.setStyleSheet(
+                """
+                QPushButton {
+                    background-color: #FFFFFF;
+                    border: 1px solid #CBD5E1;
+                    border-radius: 8px;
+                    padding: 6px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #F8FAFC;
+                    border-color: #00A0DF;
+                }
+                """
+            )
 
     def _abrir_panel(self) -> None:
         panel = PanelNotificaciones(self._usuario_id, self._rol, parent=self)
         panel.exec()
         # al cerrar, las notificaciones se marcaron leídas -> refrescar contador
         self.refrescar_contador()
+
 
 
 class _Tarjeta(QFrame):

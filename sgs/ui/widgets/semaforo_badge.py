@@ -24,15 +24,15 @@ class SemaforoBadge(QWidget):
         self._punto_label = QLabel("●")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 3, 10, 3)
-        layout.setSpacing(6)
+        layout.setContentsMargins(6, 2, 8, 2)
+        layout.setSpacing(5)
 
-        self._punto_label.setStyleSheet("font-size: 10px;")
+        self._punto_label.setStyleSheet("font-size: 10px; background: transparent;")
         layout.addWidget(self._punto_label)
 
         if mostrar_texto:
             self._texto_label = QLabel()
-            self._texto_label.setStyleSheet("font-weight: 500; font-size: 12px;")
+            self._texto_label.setStyleSheet("font-weight: 600; font-size: 11px; background: transparent;")
             layout.addWidget(self._texto_label)
 
         self._color_actual: str | None = None
@@ -43,11 +43,12 @@ class SemaforoBadge(QWidget):
         """Actualiza estado visual (color, texto y fondo) sin recrear el widget —
         permite refrescar en vivo el semáforo (ej. traslado recién elegido)."""
         fg, bg = theme.SEMAFORO_COLORES.get(
-            color, theme.SEMAFORO_COLORES.get("SIN_FECHA", ("#9AA1AC", "#EEF0F3"))
+            color, theme.SEMAFORO_COLORES.get("SIN_FECHA", ("#64748B", "#F1F5F9"))
         )
         self._color_actual = color
-        self._punto_label.setStyleSheet(f"color: {fg}; font-size: 10px;")
+        self._punto_label.setStyleSheet(f"color: {fg}; font-size: 10px; background: transparent;")
         if self._texto_label is not None:
             self._texto_label.setText(ETIQUETAS.get(color, color))
-            self._texto_label.setStyleSheet(f"color: {fg}; font-weight: 500; font-size: 12px;")
-        self.setStyleSheet(f"background-color: {bg}; border-radius: 10px;")
+            self._texto_label.setStyleSheet(f"color: {fg}; font-weight: 600; font-size: 11px; background: transparent;")
+        self.setStyleSheet(f"background-color: {bg}; border-radius: 9px; border: 1px solid {bg};")
+

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
-from sgs.ui import theme
-
 PASOS = [
     "Seleccionar archivo",
     "Validar estructura",
@@ -17,8 +15,8 @@ class IndicadorPasos(QWidget):
     def __init__(self):
         super().__init__()
         self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(6)
+        self._layout.setContentsMargins(0, 4, 0, 8)
+        self._layout.setSpacing(8)
         self._labels: list[QLabel] = []
         for i, paso in enumerate(PASOS):
             lbl = QLabel(f"{i + 1}. {paso}")
@@ -27,7 +25,7 @@ class IndicadorPasos(QWidget):
             self._labels.append(lbl)
             if i < len(PASOS) - 1:
                 separador = QLabel("→")
-                separador.setStyleSheet(f"color: {theme.TEXT_SECONDARY};")
+                separador.setStyleSheet("color: #CBD5E1; font-size: 14px; font-weight: 700;")
                 self._layout.addWidget(separador)
         self._layout.addStretch()
         self.marcar_paso(0)
@@ -39,7 +37,16 @@ class IndicadorPasos(QWidget):
     @staticmethod
     def _estilo(activo: bool, hecho: bool) -> str:
         if activo:
-            return f"background-color: {theme.ACCENT_LIGHT}; color: {theme.ACCENT}; border-radius: 8px; padding: 5px 10px; font-weight: 600;"
+            return (
+                "background-color: #E0F2FE; color: #0284C7; border: 1px solid #BAE6FD; "
+                "border-radius: 8px; padding: 6px 14px; font-weight: 700; font-size: 12px;"
+            )
         if hecho:
-            return f"color: {theme.SEMAFORO_VERDE}; padding: 5px 10px; font-weight: 500;"
-        return f"color: {theme.TEXT_SECONDARY}; padding: 5px 10px;"
+            return (
+                "background-color: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; "
+                "border-radius: 8px; padding: 6px 14px; font-weight: 600; font-size: 12px;"
+            )
+        return (
+            "background-color: #F8FAFC; color: #94A3B8; border: 1px solid #E2E8F0; "
+            "border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500;"
+        )

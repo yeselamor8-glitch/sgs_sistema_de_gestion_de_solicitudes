@@ -7,3 +7,8 @@ resultado de inmediato (igual que antes de introducir los hilos)."""
 import os
 
 os.environ.setdefault("SGS_TAREAS_SINCRONAS", "1")
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication
+
+_app = QApplication.instance() or QApplication([])

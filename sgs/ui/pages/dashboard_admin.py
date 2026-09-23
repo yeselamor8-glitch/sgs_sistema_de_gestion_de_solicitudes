@@ -76,9 +76,15 @@ class DashboardAdminPage(QWidget):
 
     def _encabezado(self) -> QHBoxLayout:
         fila = QHBoxLayout()
-        titulo = QLabel("Dashboard")
-        titulo.setProperty("role", "title")
-        fila.addWidget(titulo)
+        col_titulos = QVBoxLayout()
+        col_titulos.setSpacing(2)
+        titulo = QLabel("Panel de control")
+        titulo.setStyleSheet("font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.3px;")
+        sub = QLabel("Monitoreo en tiempo real de términos legales y oportunidad de respuesta")
+        sub.setStyleSheet("font-size: 12px; color: #64748B;")
+        col_titulos.addWidget(titulo)
+        col_titulos.addWidget(sub)
+        fila.addLayout(col_titulos)
         fila.addStretch()
         return fila
 
@@ -88,10 +94,10 @@ class DashboardAdminPage(QWidget):
         grilla.setSpacing(12)
 
         tarjetas = [
-            MetricCard("Total solicitudes", str(datos["total"])),
-            MetricCard("En tiempo", str(datos["en_tiempo"]), "#00A651", "#E8F5E9"),
-            MetricCard("Próximas a vencer", str(datos["proximas_vencer"]), "#F57C00", "#FFF8E1"),
-            MetricCard("Vencidas", str(datos["vencidas"]), "#E53935", "#FFEBEE"),
+            MetricCard("Total solicitudes", str(datos["total"]), "#0082C8", "#FFFFFF", "En gestión activa"),
+            MetricCard("En tiempo", str(datos["en_tiempo"]), "#16A34A", "#F0FDF4", "Dentro del plazo"),
+            MetricCard("Próximas a vencer", str(datos["proximas_vencer"]), "#D97706", "#FFFBEB", "Atención prioritaria"),
+            MetricCard("Vencidas", str(datos["vencidas"]), "#DC2626", "#FEF2F2", "Término superado"),
         ]
         for i, tarjeta in enumerate(tarjetas):
             grilla.addWidget(tarjeta, 0, i)
@@ -119,19 +125,34 @@ class DashboardAdminPage(QWidget):
             fila = QFrame()
             fila.setObjectName("filaPrioritaria")
             fila.setStyleSheet(
-                f"QFrame#filaPrioritaria {{ background-color: transparent; border-radius: 8px; }}"
-                f"QFrame#filaPrioritaria:hover {{ background-color: {theme.COLORES['surface_hover']}; }}"
+                """
+                QFrame#filaPrioritaria {
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 8px;
+                }
+                QFrame#filaPrioritaria:hover {
+                    background-color: #F0F9FF;
+                    border-color: #BAE6FD;
+                }
+                QFrame#filaPrioritaria QLabel {
+                    border: none;
+                }
+                """
             )
             fila_layout = QHBoxLayout(fila)
-            fila_layout.setContentsMargins(16, 12, 16, 12)
+            fila_layout.setContentsMargins(14, 10, 14, 10)
             fila_layout.setSpacing(10)
             fila_layout.addWidget(self._punto_color(color))
-            texto = QLabel(f"{numero} · {proceso}")
-            texto.setStyleSheet(f"font-size: 14px; color: {theme.COLORES['on_surface']};")
+            texto = QLabel(f"<b>{numero}</b> · <span style='color: #475569;'>{proceso}</span>")
+            texto.setStyleSheet("font-size: 13px; color: #0F172A; border: none;")
             fila_layout.addWidget(texto)
             fila_layout.addStretch()
             lbl_detalle = QLabel(detalle)
-            lbl_detalle.setStyleSheet(f"font-size: 12px; color: {theme.COLORES['on_surface_var']};")
+            lbl_detalle.setStyleSheet(
+                "background-color: #FEF2F2; color: #DC2626; font-size: 11px; "
+                "font-weight: 600; padding: 3px 8px; border-radius: 6px; border: none;"
+            )
             fila_layout.addWidget(lbl_detalle)
             layout.addWidget(fila)
         return panel
@@ -140,7 +161,7 @@ class DashboardAdminPage(QWidget):
         color = self._COLOR_PUNTO.get(semaforo, theme.COLORES_SEMAFORO["GRIS"])
         punto = QLabel()
         punto.setFixedSize(12, 12)
-        punto.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
+        punto.setStyleSheet(f"background-color: {color}; border-radius: 6px; border: none;")
         return punto
 
     def _panel_por_proceso(self) -> QFrame:
@@ -155,40 +176,55 @@ class DashboardAdminPage(QWidget):
         for nombre, total, porcentaje in por_proceso:
             fila_titulo = QHBoxLayout()
             lbl_nombre = QLabel(nombre)
-            lbl_nombre.setStyleSheet(f"font-size: 13px; color: {theme.COLORES['on_surface']};")
+            lbl_nombre.setStyleSheet("font-size: 13px; font-weight: 500; color: #1E293B; border: none;")
             fila_titulo.addWidget(lbl_nombre)
             fila_titulo.addStretch()
-            lbl_total = QLabel(str(total))
-            lbl_total.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {theme.COLORES['on_surface']};")
+            lbl_total = QLabel(f"{total}  ({int(porcentaje)}%)")
+            lbl_total.setStyleSheet(
+                "font-size: 12px; font-weight: 700; color: #0369A1; "
+                "background-color: #E0F2FE; padding: 2px 8px; border-radius: 6px; border: none;"
+            )
             fila_titulo.addWidget(lbl_total)
             layout.addLayout(fila_titulo)
 
             barra_fondo = QFrame()
-            barra_fondo.setFixedHeight(4)
-            barra_fondo.setStyleSheet(f"background-color: {theme.COLORES['outline_variant']}; border-radius: 2px;")
+            barra_fondo.setFixedHeight(6)
+            barra_fondo.setStyleSheet("background-color: #F1F5F9; border-radius: 3px; border: none;")
             barra_layout = QHBoxLayout(barra_fondo)
             barra_layout.setContentsMargins(0, 0, 0, 0)
             barra_rellena = QFrame()
-            barra_rellena.setFixedHeight(4)
-            barra_rellena.setStyleSheet(f"background-color: {theme.COLORES['primary']}; border-radius: 2px;")
+            barra_rellena.setFixedHeight(6)
+            barra_rellena.setStyleSheet(
+                "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #38BDF8, stop:1 #0082C8); "
+                "border-radius: 3px; border: none;"
+            )
             pct = max(0, min(100, int(porcentaje)))
             barra_layout.addWidget(barra_rellena, stretch=pct)
             barra_layout.addStretch(100 - pct)
             layout.addWidget(barra_fondo)
-            layout.addSpacing(4)
+            layout.addSpacing(6)
         return panel
 
     def _panel_base(self, titulo: str) -> QFrame:
         panel = QFrame()
+        panel.setObjectName("panelBase")
         panel.setStyleSheet(
-            f"QFrame {{ background-color: {theme.COLORES['surface']}; "
-            f"border: 1px solid {theme.COLORES['outline']}; border-radius: {theme.BORDES['lg']}px; }}"
+            """
+            QFrame#panelBase {
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+            }
+            QFrame#panelBase QLabel {
+                border: none;
+            }
+            """
         )
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(10)
         lbl = QLabel(titulo)
-        lbl.setStyleSheet(f"font-weight: 600; font-size: 16px; color: {theme.COLORES['on_surface']};")
+        lbl.setStyleSheet("font-weight: 700; font-size: 15px; color: #0F172A; border: none;")
         layout.addWidget(lbl)
         return panel
 

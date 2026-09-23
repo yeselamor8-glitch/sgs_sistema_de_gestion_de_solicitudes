@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QDate, Signal
+from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -106,23 +106,32 @@ class DetalleSolicitudPage(QWidget):
 
     # ------------------------------------------------------------------
     def _encabezado(self) -> QHBoxLayout:
+        from sgs.ui.assets_loader import assets
+        from PySide6.QtCore import QSize
+
         fila = QHBoxLayout()
         fila.setSpacing(14)
 
-        boton_volver = QPushButton("← Volver a solicitudes")
+        boton_volver = QPushButton(" Volver a solicitudes")
+        boton_volver.setIcon(assets.icono("flecha_volver"))
+        boton_volver.setIconSize(QSize(16, 16))
         boton_volver.setProperty("variant", "ghost")
+        boton_volver.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_volver.clicked.connect(self.volver_solicitado.emit)
         fila.addWidget(boton_volver)
 
         titulo = QLabel(self._datos["numero_solicitud_sac"])
-        titulo.setProperty("role", "title")
+        titulo.setStyleSheet("font-size: 22px; font-weight: 800; color: #0F172A; letter-spacing: -0.3px;")
         fila.addWidget(titulo)
 
         self.badge_encabezado = SemaforoBadge(self._datos["semaforo"])
         fila.addWidget(self.badge_encabezado)
 
         lbl_proceso = QLabel(f"{self._datos['proceso']} · {self._datos['funcionario']}")
-        lbl_proceso.setProperty("role", "secondary")
+        lbl_proceso.setStyleSheet(
+            "background-color: #F1F5F9; color: #475569; font-size: 12px; "
+            "font-weight: 600; padding: 4px 10px; border-radius: 6px;"
+        )
         fila.addWidget(lbl_proceso)
 
         fila.addStretch()
@@ -294,14 +303,23 @@ class DetalleSolicitudPage(QWidget):
 
     # ------------------------------------------------------------------
     def _fila_guardar(self) -> QHBoxLayout:
+        from sgs.ui.assets_loader import assets
+        from PySide6.QtCore import QSize
+
         fila = QHBoxLayout()
         self.lbl_estado_guardado = QLabel("")
-        self.lbl_estado_guardado.setProperty("role", "secondary")
+        self.lbl_estado_guardado.setStyleSheet(
+            "color: #16A34A; font-weight: 600; font-size: 13px;"
+        )
         fila.addWidget(self.lbl_estado_guardado)
         fila.addStretch()
 
-        boton_guardar = QPushButton("Guardar cambios")
+        boton_guardar = QPushButton(" Guardar cambios")
+        boton_guardar.setIcon(assets.icono("check"))
+        boton_guardar.setIconSize(QSize(16, 16))
         boton_guardar.setProperty("variant", "primary")
+        boton_guardar.setMinimumHeight(44)
+        boton_guardar.setCursor(Qt.CursorShape.PointingHandCursor)
         boton_guardar.clicked.connect(self._guardar_cambios)
         fila.addWidget(boton_guardar)
         return fila
